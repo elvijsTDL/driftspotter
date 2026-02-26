@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { getResend, FROM_EMAIL } from "@/lib/email/resend";
 import { WeeklyDigestEmail } from "@/lib/email/templates/weekly-digest";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -71,7 +71,7 @@ export async function GET() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const profileData = profile as any;
 
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM_EMAIL,
         to: user.email,
         subject: `Your Weekly Drift Digest — ${weekStart}`,

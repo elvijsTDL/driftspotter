@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { getResend, FROM_EMAIL } from "@/lib/email/resend";
 import { WelcomeEmail } from "@/lib/email/templates/welcome";
 
 export async function POST(request: Request) {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing email or username" }, { status: 400 });
     }
 
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: "Welcome to DriftSpotter! 🏎️",

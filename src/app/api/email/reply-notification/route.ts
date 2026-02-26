@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resend, FROM_EMAIL } from "@/lib/email/resend";
+import { getResend, FROM_EMAIL } from "@/lib/email/resend";
 import { ReplyNotificationEmail } from "@/lib/email/templates/reply-notification";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const profileData = profile as any;
 
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: user.email,
       subject: `${replierName} replied to your thread`,
