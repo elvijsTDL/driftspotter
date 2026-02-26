@@ -3,6 +3,7 @@ import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/components/ui/Toast";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "DriftSpotter — Every Slide. Every Event. One Map.",
@@ -34,6 +35,7 @@ export default function RootLayout({
             <ClientLayout>{children}</ClientLayout>
           </ToastProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
