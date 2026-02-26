@@ -50,30 +50,32 @@ export function useEvents() {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mapped: DriftEvent[] = (data as any[]).map((row) => ({
-      id: row.id,
-      name: row.name,
-      series: row.series || undefined,
-      date: row.date,
-      endDate: row.end_date || undefined,
-      location: row.location,
-      country: row.country,
-      track: row.track,
-      lat: row.lat,
-      lng: row.lng,
-      category: row.category,
-      cageRequired: row.cage_required,
-      tireSize: row.tire_size,
-      skillLevel: row.skill_level,
-      description: row.description,
-      eventUrl: row.event_url || undefined,
-      imageUrl: row.image_url || undefined,
-      price: row.price || undefined,
-      attendees: countMap.get(row.id) || 0,
-      isHot: row.is_hot,
-      participation: row.participation,
-      organizer: row.organizer,
-    }));
+    const mapped: DriftEvent[] = (data as any[])
+      .filter((row) => row.lat != null && row.lng != null)
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        series: row.series || undefined,
+        date: row.date,
+        endDate: row.end_date || undefined,
+        location: row.location,
+        country: row.country,
+        track: row.track,
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        category: row.category,
+        cageRequired: row.cage_required,
+        tireSize: row.tire_size,
+        skillLevel: row.skill_level,
+        description: row.description,
+        eventUrl: row.event_url || undefined,
+        imageUrl: row.image_url || undefined,
+        price: row.price || undefined,
+        attendees: countMap.get(row.id) || 0,
+        isHot: row.is_hot,
+        participation: row.participation,
+        organizer: row.organizer,
+      }));
 
     setEvents(mapped);
     setLoading(false);

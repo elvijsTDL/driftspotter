@@ -1,14 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useEvents } from "@/hooks/useEvents";
 
-const stats = [
-  { label: "Events", value: 142, suffix: "+" },
-  { label: "Countries", value: 12, suffix: "" },
-  { label: "Drivers", value: 8400, suffix: "+" },
-  { label: "Tracks", value: 320, suffix: "+" },
-];
+function useHeroStats() {
+  const { events } = useEvents();
+
+  return useMemo(() => {
+    const eventCount = events.length;
+    const countryCount = new Set(events.map((e) => e.country)).size;
+    const trackCount = new Set(events.map((e) => e.track)).size;
+    const totalAttendees = events.reduce((sum, e) => sum + (e.attendees || 0), 0);
+
+    return [
+      { label: "Events", value: eventCount, suffix: "+" },
+      { label: "Countries", value: countryCount, suffix: "" },
+      { label: "Drivers", value: totalAttendees, suffix: "+" },
+      { label: "Tracks", value: trackCount, suffix: "+" },
+    ];
+  }, [events]);
+}
 
 function AnimatedCounter({ target, suffix }: { target: number; suffix: string }) {
   const [count, setCount] = useState(0);
@@ -45,6 +57,8 @@ function AnimatedCounter({ target, suffix }: { target: number; suffix: string })
 }
 
 export default function Hero() {
+  const stats = useHeroStats();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated background layers */}
@@ -69,11 +83,6 @@ export default function Hero() {
 
       {/* Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-light mb-8 animate-fade-in-up">
-          <span className="w-2 h-2 rounded-full bg-drift-orange animate-pulse-glow" />
-          <span className="text-xs font-medium text-muted tracking-wider uppercase">Live events happening now</span>
-        </div>
 
         {/* Headline */}
         <h1 className="font-heading font-bold text-5xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.9] mb-6 animate-fade-in-up delay-100" style={{ opacity: 0, animationFillMode: "forwards" }}>
