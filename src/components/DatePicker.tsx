@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -28,6 +28,8 @@ function parseDate(str: string) {
 export default function DatePicker({ value, onChange, placeholder = "Pick a date", compact }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   const parsed = parseDate(value);
   const [viewYear, setViewYear] = useState(parsed?.year ?? 2026);
@@ -38,6 +40,24 @@ export default function DatePicker({ value, onChange, placeholder = "Pick a date
     const p = parseDate(value);
     if (p) { setViewYear(p.year); setViewMonth(p.month); }
   }, [value]);
+
+  // Position dropdown to avoid clipping
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const dropdownHeight = 360;
+
+    if (spaceBelow < dropdownHeight) {
+      setDropdownStyle({ bottom: "100%", marginBottom: "8px", left: 0 });
+    } else {
+      setDropdownStyle({ top: "100%", marginTop: "8px", left: 0 });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) updatePosition();
+  }, [open, updatePosition]);
 
   // Close on outside click
   useEffect(() => {
@@ -77,6 +97,7 @@ export default function DatePicker({ value, onChange, placeholder = "Pick a date
     <div ref={ref} className="relative">
       {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 w-full text-left border border-border rounded-xl transition-all focus:outline-none focus:border-drift-orange hover:border-border-light ${
@@ -106,7 +127,7 @@ export default function DatePicker({ value, onChange, placeholder = "Pick a date
 
       {/* Dropdown calendar */}
       {open && (
-        <div className="absolute z-50 mt-2 w-[280px] rounded-2xl glass border border-border shadow-2xl shadow-black/50 p-4 animate-fade-in-up" style={{ animationDuration: "150ms" }}>
+        <div className="absolute z-50 w-[280px] rounded-2xl bg-surface border border-border shadow-2xl shadow-black/50 p-4 animate-fade-in-up" style={{ animationDuration: "150ms", ...dropdownStyle }}>
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <button

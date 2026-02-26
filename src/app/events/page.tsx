@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { type DriftEvent } from "@/data/events";
 import { useEvents } from "@/hooks/useEvents";
 import EventDetailModal from "@/components/EventDetailModal";
@@ -32,10 +32,45 @@ interface Filters {
   participation: "all" | "drive" | "watch";
   dateFrom: string;
   dateTo: string;
-  sort: "date" | "popular";
+  sort: "date" | "popular" | "country" | "nearby";
 }
 
-function EventCard({ event, onSelect }: { event: DriftEvent; onSelect: (e: DriftEvent) => void }) {
+function getCountryName(code: string): string {
+  try {
+    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    return names.of(code) || code;
+  } catch {
+    return code;
+  }
+}
+
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function formatDistance(km: number): string {
+  if (km < 1) return "< 1 km";
+  if (km < 100) return `${Math.round(km)} km`;
+  return `${Math.round(km).toLocaleString()} km`;
+}
+
+function EventCard({
+  event,
+  onSelect,
+  distance,
+}: {
+  event: DriftEvent;
+  onSelect: (e: DriftEvent) => void;
+  distance?: number;
+}) {
   const [going, setGoing] = useState(false);
   const cat = categoryColors[event.category];
   const pb = participationBadge(event.participation);
@@ -78,7 +113,12 @@ function EventCard({ event, onSelect }: { event: DriftEvent; onSelect: (e: Drift
               </span>
             </div>
           )}
-          <div className="absolute bottom-3 right-3">
+          <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+            {distance !== undefined && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/60 text-drift-cyan uppercase tracking-wider backdrop-blur-sm">
+                {formatDistance(distance)}
+              </span>
+            )}
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${pb.bg} ${pb.text} uppercase tracking-wider`}>
               {pb.label}
             </span>
@@ -162,6 +202,9 @@ export default function EventsPage() {
   const { events, loading } = useEvents();
   const [selectedEvent, setSelectedEvent] = useState<DriftEvent | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     categories: [],
@@ -180,6 +223,36 @@ export default function EventsPage() {
     }));
   };
 
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoError("Geolocation is not supported by your browser");
+      return;
+    }
+    setGeoLoading(true);
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setFilters((f) => ({ ...f, sort: "nearby" }));
+        setGeoLoading(false);
+      },
+      (err) => {
+        setGeoError(err.code === 1 ? "Location access denied" : "Could not get your location");
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  }, []);
+
+  const distanceMap = useMemo(() => {
+    if (!userLocation) return new Map<string, number>();
+    const map = new Map<string, number>();
+    events.forEach((e) => {
+      map.set(e.id, haversineDistance(userLocation.lat, userLocation.lng, e.lat, e.lng));
+    });
+    return map;
+  }, [events, userLocation]);
+
   const filteredEvents = useMemo(() => {
     let result = events.filter((e) => {
       if (filters.search && !e.name.toLowerCase().includes(filters.search.toLowerCase()) && !e.location.toLowerCase().includes(filters.search.toLowerCase())) return false;
@@ -193,12 +266,38 @@ export default function EventsPage() {
 
     if (filters.sort === "date") {
       result.sort((a, b) => a.date.localeCompare(b.date));
-    } else {
+    } else if (filters.sort === "popular") {
       result.sort((a, b) => b.attendees - a.attendees);
+    } else if (filters.sort === "country") {
+      result.sort((a, b) => {
+        const countryCompare = getCountryName(a.country).localeCompare(getCountryName(b.country));
+        if (countryCompare !== 0) return countryCompare;
+        return a.date.localeCompare(b.date);
+      });
+    } else if (filters.sort === "nearby" && userLocation) {
+      result.sort((a, b) => {
+        const distA = distanceMap.get(a.id) ?? Infinity;
+        const distB = distanceMap.get(b.id) ?? Infinity;
+        return distA - distB;
+      });
     }
 
     return result;
-  }, [events, filters]);
+  }, [events, filters, userLocation, distanceMap]);
+
+  const countryGroups = useMemo(() => {
+    if (filters.sort !== "country") return null;
+    const groups: { country: string; name: string; events: DriftEvent[] }[] = [];
+    let currentCountry = "";
+    for (const event of filteredEvents) {
+      if (event.country !== currentCountry) {
+        currentCountry = event.country;
+        groups.push({ country: currentCountry, name: getCountryName(currentCountry), events: [] });
+      }
+      groups[groups.length - 1].events.push(event);
+    }
+    return groups;
+  }, [filteredEvents, filters.sort]);
 
   const activeFilterCount = [
     filters.search,
@@ -239,6 +338,32 @@ export default function EventsPage() {
               >
                 Most Popular
               </button>
+              <button
+                onClick={() => setFilters((f) => ({ ...f, sort: "country" }))}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  filters.sort === "country" ? "bg-drift-orange text-white" : "glass text-muted hover:text-foreground"
+                }`}
+              >
+                By Country
+              </button>
+              <button
+                onClick={() => {
+                  if (userLocation) {
+                    setFilters((f) => ({ ...f, sort: "nearby" }));
+                  } else {
+                    requestLocation();
+                  }
+                }}
+                disabled={geoLoading}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  filters.sort === "nearby" ? "bg-drift-cyan text-white" : "glass text-muted hover:text-foreground"
+                } ${geoLoading ? "opacity-50 cursor-wait" : ""}`}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" /><line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
+                </svg>
+                {geoLoading ? "Locating..." : "Near Me"}
+              </button>
             </div>
             {/* Filter toggle */}
             <button
@@ -264,6 +389,21 @@ export default function EventsPage() {
           </div>
         </div>
 
+        {/* Geo error message */}
+        {geoError && (
+          <div className="mb-4 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400 flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            {geoError}
+            <button onClick={() => setGeoError(null)} className="ml-auto text-red-400 hover:text-red-300">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Filter bar */}
         <div className={`transition-all duration-300 overflow-hidden ${filtersOpen ? "max-h-[500px] opacity-100 mb-8" : "max-h-0 opacity-0"}`}>
           <div className="glass rounded-2xl p-5 space-y-5">
@@ -271,7 +411,7 @@ export default function EventsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Search */}
               <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-dark pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                 <input
                   type="text"
                   placeholder="Search events or locations..."
@@ -345,7 +485,7 @@ export default function EventsPage() {
               <div className="w-px h-6 bg-border hidden sm:block" />
 
               {/* Mobile sort */}
-              <div className="flex sm:hidden items-center gap-2">
+              <div className="flex sm:hidden items-center gap-2 flex-wrap">
                 <span className="text-xs text-muted uppercase tracking-wider font-medium">Sort:</span>
                 <button
                   onClick={() => setFilters((f) => ({ ...f, sort: "date" }))}
@@ -362,6 +502,32 @@ export default function EventsPage() {
                   }`}
                 >
                   Popular
+                </button>
+                <button
+                  onClick={() => setFilters((f) => ({ ...f, sort: "country" }))}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    filters.sort === "country" ? "bg-drift-orange text-white" : "bg-surface-lighter text-muted"
+                  }`}
+                >
+                  By Country
+                </button>
+                <button
+                  onClick={() => {
+                    if (userLocation) {
+                      setFilters((f) => ({ ...f, sort: "nearby" }));
+                    } else {
+                      requestLocation();
+                    }
+                  }}
+                  disabled={geoLoading}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    filters.sort === "nearby" ? "bg-drift-cyan text-white" : "bg-surface-lighter text-muted"
+                  } ${geoLoading ? "opacity-50 cursor-wait" : ""}`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" /><line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
+                  </svg>
+                  {geoLoading ? "Locating..." : "Near Me"}
                 </button>
               </div>
 
@@ -382,16 +548,55 @@ export default function EventsPage() {
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-muted">
             <span className="text-drift-orange font-semibold">{filteredEvents.length}</span> events found
+            {filters.sort === "country" && countryGroups && (
+              <span className="text-muted-dark"> across {countryGroups.length} {countryGroups.length === 1 ? "country" : "countries"}</span>
+            )}
+            {filters.sort === "nearby" && userLocation && (
+              <span className="text-drift-cyan"> sorted by distance</span>
+            )}
           </p>
         </div>
 
         {/* Grid */}
         {filteredEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} onSelect={setSelectedEvent} />
-            ))}
-          </div>
+          filters.sort === "country" && countryGroups ? (
+            <div className="space-y-10">
+              {countryGroups.map((group) => (
+                <div key={group.country}>
+                  <div className="flex items-center gap-3 mb-5">
+                    <h3 className="font-heading font-semibold text-xl text-foreground">
+                      {group.name}
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-lighter text-muted border border-border">
+                      {group.events.length} {group.events.length === 1 ? "event" : "events"}
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {group.events.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        onSelect={setSelectedEvent}
+                        distance={filters.sort === "nearby" ? distanceMap.get(event.id) : undefined}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onSelect={setSelectedEvent}
+                  distance={filters.sort === "nearby" ? distanceMap.get(event.id) : undefined}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <div className="glass rounded-2xl p-16 text-center">
             <svg className="mx-auto mb-4 text-muted-dark" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

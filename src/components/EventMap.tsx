@@ -36,7 +36,25 @@ const participationBadge = (p: "drive" | "watch" | "both") => {
   return { label: "Both", color: "#A855F7", bg: "#A855F720" };
 };
 
-function MiniEventCard({ event, onSelect }: { event: DriftEvent; onSelect: (e: DriftEvent) => void }) {
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function formatDistance(km: number): string {
+  if (km < 1) return "< 1 km";
+  if (km < 100) return `${Math.round(km)} km`;
+  return `${Math.round(km).toLocaleString()} km`;
+}
+
+function MiniEventCard({ event, onSelect, distance }: { event: DriftEvent; onSelect: (e: DriftEvent) => void; distance?: number }) {
   const color = categoryColors[event.category];
   const pb = participationBadge(event.participation);
   return (
@@ -61,6 +79,9 @@ function MiniEventCard({ event, onSelect }: { event: DriftEvent; onSelect: (e: D
               {pb.label}
             </span>
             <span className="text-[10px] text-muted">{event.attendees} going</span>
+            {distance !== undefined && (
+              <span className="text-[10px] font-medium text-drift-cyan">{formatDistance(distance)}</span>
+            )}
           </div>
         </div>
       </div>
@@ -141,8 +162,12 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const markersRef = useRef<Map<string, { getElement: () => HTMLElement; remove: () => void }>>(new Map());
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const userMarkerRef = useRef<{ remove: () => void } | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"map" | "calendar">("map");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [sortByDistance, setSortByDistance] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     categories: [],
     cageRequired: "all",
@@ -153,6 +178,15 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
     dateFrom: "",
     dateTo: "",
   });
+
+  const distanceMap = useMemo(() => {
+    if (!userLocation) return new Map<string, number>();
+    const map = new Map<string, number>();
+    events.forEach((e) => {
+      map.set(e.id, haversineDistance(userLocation.lat, userLocation.lng, e.lat, e.lng));
+    });
+    return map;
+  }, [events, userLocation]);
 
   const filteredEvents = useMemo(() => {
     const result = events.filter((e) => {
@@ -168,9 +202,17 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
       if (filters.dateTo && e.date > filters.dateTo) return false;
       return true;
     });
-    result.sort((a, b) => a.date.localeCompare(b.date));
+    if (sortByDistance && userLocation) {
+      result.sort((a, b) => {
+        const distA = distanceMap.get(a.id) ?? Infinity;
+        const distB = distanceMap.get(b.id) ?? Infinity;
+        return distA - distB;
+      });
+    } else {
+      result.sort((a, b) => a.date.localeCompare(b.date));
+    }
     return result;
-  }, [events, filters]);
+  }, [events, filters, sortByDistance, userLocation, distanceMap]);
 
   const filteredIds = useMemo(() => new Set(filteredEvents.map((e) => e.id)), [filteredEvents]);
 
@@ -190,6 +232,44 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
         : [...f.categories, cat],
     }));
   };
+
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(loc);
+        setSortByDistance(true);
+        setGeoLoading(false);
+
+        // Center map and add user marker
+        const map = mapRef.current;
+        if (map) {
+          const maplibregl = (await import("maplibre-gl")).default;
+          (map as maplibregl.Map).flyTo({ center: [loc.lng, loc.lat], zoom: 5 });
+
+          // Remove old user marker if exists
+          if (userMarkerRef.current) userMarkerRef.current.remove();
+
+          const el = document.createElement("div");
+          el.style.cssText = `
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #00D4FF; border: 3px solid #0a0a0a;
+            box-shadow: 0 0 16px #00D4FF88, 0 0 40px #00D4FF44;
+          `;
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat([loc.lng, loc.lat])
+            .addTo(map as maplibregl.Map);
+          userMarkerRef.current = marker;
+        }
+      },
+      () => {
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  }, []);
 
   const initMap = useCallback(async () => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -324,6 +404,31 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              className="lg:hidden px-4 py-2 rounded-lg text-sm font-medium transition-all glass text-muted hover:text-foreground flex items-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="14" y2="12" /><line x1="4" y1="18" x2="10" y2="18" /></svg>
+              Filters
+            </button>
+            <button
+              onClick={() => {
+                if (userLocation) {
+                  setSortByDistance(!sortByDistance);
+                } else {
+                  requestLocation();
+                }
+              }}
+              disabled={geoLoading}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                sortByDistance ? "bg-drift-cyan text-white" : "glass text-muted hover:text-foreground"
+              } ${geoLoading ? "opacity-50 cursor-wait" : ""}`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" /><line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
+              </svg>
+              {geoLoading ? "Locating..." : "Near Me"}
+            </button>
+            <button
               onClick={() => setViewMode("map")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === "map" ? "bg-drift-orange text-white" : "glass text-muted hover:text-foreground"}`}
             >
@@ -338,9 +443,9 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
           </div>
         </div>
 
-        <div className="flex gap-5">
+        <div className="flex flex-col lg:flex-row gap-5">
           {/* Sidebar filters */}
-          <div className={`${filtersOpen ? "w-80" : "w-0"} flex-shrink-0 transition-all duration-300 overflow-hidden hidden lg:block`}>
+          <div className={`${filtersOpen ? "block" : "hidden"} lg:block lg:w-80 flex-shrink-0 transition-all duration-300 overflow-visible`}>
             <div className="glass rounded-2xl p-5 space-y-5">
               {/* Participation Toggle */}
               <div>
@@ -413,7 +518,7 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
                 <label className="text-xs text-muted uppercase tracking-wider font-medium">Category</label>
                 <div className="mt-2 space-y-2">
                   {Object.entries(categoryLabels).map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-3 cursor-pointer group">
+                    <label key={key} onClick={() => toggleCategory(key)} className="flex items-center gap-3 cursor-pointer group">
                       <div className={`w-4 h-4 rounded border-2 transition-colors flex items-center justify-center ${
                         filters.categories.includes(key) ? "border-drift-orange bg-drift-orange" : "border-border-light group-hover:border-muted"
                       }`}>
@@ -494,7 +599,7 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
               {/* Event list */}
               <div className="space-y-2 max-h-[300px] overflow-y-auto no-scrollbar">
                 {filteredEvents.map((e) => (
-                  <MiniEventCard key={e.id} event={e} onSelect={onSelectEvent} />
+                  <MiniEventCard key={e.id} event={e} onSelect={onSelectEvent} distance={sortByDistance ? distanceMap.get(e.id) : undefined} />
                 ))}
               </div>
             </div>
@@ -502,14 +607,6 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
 
           {/* Map / Calendar */}
           <div className="flex-1 min-w-0">
-            {/* Mobile filter toggle */}
-            <button
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className="lg:hidden mb-4 px-4 py-2 glass rounded-xl text-sm font-medium text-muted hover:text-foreground transition-colors"
-            >
-              {filtersOpen ? "Hide Filters" : "Show Filters"}
-            </button>
-
             {viewMode === "map" ? (
               <div className="relative rounded-2xl overflow-hidden border border-border" style={{ height: "600px" }}>
                 <div ref={mapContainerRef} className="w-full h-full" />

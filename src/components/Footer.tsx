@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 
 const footerLinks = {
   Platform: [
     { label: "Events Map", href: "/map" },
     { label: "Submit Event", href: "/submit" },
-    { label: "Calendar", href: "/map" },
+    { label: "Calendar", href: "/events" },
     { label: "Featured Events", href: "/events" },
   ],
   Community: [
@@ -25,9 +24,6 @@ const footerLinks = {
 };
 
 export default function Footer() {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
   return (
     <footer className="relative bg-surface border-t border-border">
       {/* Top gradient line */}
@@ -52,29 +48,7 @@ export default function Footer() {
             {/* Newsletter */}
             <div className="mb-6">
               <p className="font-heading font-semibold text-sm text-foreground mb-3">Never miss a slide</p>
-              {subscribed ? (
-                <p className="text-sm text-badge-grassroots">You&apos;re in! Check your inbox.</p>
-              ) : (
-                <form
-                  onSubmit={(e) => { e.preventDefault(); setSubscribed(true); }}
-                  className="flex gap-2"
-                >
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    className="flex-1 px-4 py-2.5 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-                  />
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-drift-orange hover:bg-drift-orange-light text-white font-semibold text-sm rounded-xl transition-colors active:scale-95"
-                  >
-                    Subscribe
-                  </button>
-                </form>
-              )}
+              <p className="text-sm text-muted">Newsletter coming soon. Follow us on socials to stay updated!</p>
             </div>
 
             {/* Social icons */}
