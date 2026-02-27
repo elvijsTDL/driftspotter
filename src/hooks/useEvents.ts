@@ -23,10 +23,12 @@ export function useEvents() {
   const fetchEvents = useCallback(async () => {
     setLoading(true);
 
+    const todayISO = new Date().toISOString().split("T")[0];
     const { data, error } = await supabase
       .from("events")
       .select("*")
       .eq("status", "approved")
+      .gte("date", todayISO)
       .order("date", { ascending: true });
 
     if (error || !data) {

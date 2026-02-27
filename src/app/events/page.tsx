@@ -1,10 +1,63 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { type DriftEvent } from "@/data/events";
 import { useEvents } from "@/hooks/useEvents";
 import EventDetailModal from "@/components/EventDetailModal";
 import DatePicker from "@/components/DatePicker";
+
+type TimeRange = "week" | "month" | "all";
+
+const EVENTS_PER_PAGE = 12;
+
+function getWeekRange(): { from: string; to: string } {
+  const now = new Date();
+  const from = now.toISOString().split("T")[0];
+  const dayOfWeek = now.getDay();
+  const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+  const endOfWeek = new Date(now);
+  endOfWeek.setDate(now.getDate() + daysUntilSunday);
+  return { from, to: endOfWeek.toISOString().split("T")[0] };
+}
+
+function getMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  const from = now.toISOString().split("T")[0];
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { from, to: endOfMonth.toISOString().split("T")[0] };
+}
+
+function SkeletonCard() {
+  return (
+    <div className="rounded-2xl overflow-hidden glass animate-pulse">
+      <div className="h-48 bg-gradient-to-br from-white/5 via-white/3 to-surface" />
+      <div className="p-5 space-y-3">
+        <div className="h-3 w-20 bg-white/5 rounded" />
+        <div className="h-5 w-3/4 bg-white/5 rounded" />
+        <div className="h-3 w-1/2 bg-white/5 rounded" />
+        <div className="h-3 w-2/3 bg-white/5 rounded" />
+        <div className="flex gap-2 pt-1">
+          <div className="h-5 w-16 bg-white/5 rounded" />
+          <div className="h-5 w-14 bg-white/5 rounded" />
+        </div>
+        <div className="flex items-center justify-between pt-2">
+          <div className="h-4 w-20 bg-white/5 rounded" />
+          <div className="h-7 w-20 bg-white/5 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+}
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
   official: { bg: "bg-badge-official/20", text: "text-badge-official" },
@@ -205,14 +258,37 @@ export default function EventsPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>("week");
+  const [page, setPage] = useState(1);
+
+  const initialWeek = useMemo(() => getWeekRange(), []);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     categories: [],
     participation: "all",
-    dateFrom: "",
-    dateTo: "",
+    dateFrom: initialWeek.from,
+    dateTo: initialWeek.to,
     sort: "date",
   });
+
+  const handleTimeRange = useCallback((range: TimeRange) => {
+    setTimeRange(range);
+    if (range === "week") {
+      const { from, to } = getWeekRange();
+      setFilters((f) => ({ ...f, dateFrom: from, dateTo: to }));
+    } else if (range === "month") {
+      const { from, to } = getMonthRange();
+      setFilters((f) => ({ ...f, dateFrom: from, dateTo: to }));
+    } else {
+      const from = new Date().toISOString().split("T")[0];
+      setFilters((f) => ({ ...f, dateFrom: from, dateTo: "" }));
+    }
+  }, []);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
 
   const toggleCategory = (cat: string) => {
     setFilters((f) => ({
@@ -425,7 +501,7 @@ export default function EventsPage() {
                 <label className="text-xs text-muted uppercase tracking-wider font-medium mb-1.5 block">From</label>
                 <DatePicker
                   value={filters.dateFrom}
-                  onChange={(v) => setFilters((f) => ({ ...f, dateFrom: v }))}
+                  onChange={(v) => { setTimeRange("all"); setFilters((f) => ({ ...f, dateFrom: v })); }}
                   placeholder="Start date"
                 />
               </div>
@@ -434,7 +510,7 @@ export default function EventsPage() {
                 <label className="text-xs text-muted uppercase tracking-wider font-medium mb-1.5 block">To</label>
                 <DatePicker
                   value={filters.dateTo}
-                  onChange={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
+                  onChange={(v) => { setTimeRange("all"); setFilters((f) => ({ ...f, dateTo: v })); }}
                   placeholder="End date"
                 />
               </div>
@@ -534,7 +610,7 @@ export default function EventsPage() {
               {/* Clear all */}
               {activeFilterCount > 0 && (
                 <button
-                  onClick={() => setFilters({ search: "", categories: [], participation: "all", dateFrom: "", dateTo: "", sort: filters.sort })}
+                  onClick={() => { setTimeRange("all"); setFilters({ search: "", categories: [], participation: "all", dateFrom: new Date().toISOString().split("T")[0], dateTo: "", sort: filters.sort }); }}
                   className="ml-auto text-xs text-drift-orange hover:underline"
                 >
                   Clear filters
@@ -542,6 +618,27 @@ export default function EventsPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Time range tabs */}
+        <div className="flex items-center gap-1 mb-6 p-1 glass rounded-xl w-fit">
+          {([
+            { key: "week" as TimeRange, label: "This Week" },
+            { key: "month" as TimeRange, label: "This Month" },
+            { key: "all" as TimeRange, label: "All Upcoming" },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => handleTimeRange(key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                timeRange === key
+                  ? "bg-drift-orange text-white shadow-lg shadow-drift-orange/20"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Results count */}
@@ -558,22 +655,86 @@ export default function EventsPage() {
         </div>
 
         {/* Grid */}
-        {filteredEvents.length > 0 ? (
+        {loading ? (
+          <SkeletonGrid />
+        ) : filteredEvents.length > 0 ? (
           filters.sort === "country" && countryGroups ? (
-            <div className="space-y-10">
-              {countryGroups.map((group) => (
-                <div key={group.country}>
-                  <div className="flex items-center gap-3 mb-5">
-                    <h3 className="font-heading font-semibold text-xl text-foreground">
-                      {group.name}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-lighter text-muted border border-border">
-                      {group.events.length} {group.events.length === 1 ? "event" : "events"}
-                    </span>
-                    <div className="flex-1 h-px bg-border" />
+            (() => {
+              // Paginate across all country-grouped events
+              const allGroupedEvents = countryGroups.flatMap((g) => g.events);
+              const totalPages = Math.ceil(allGroupedEvents.length / EVENTS_PER_PAGE);
+              const startIdx = (page - 1) * EVENTS_PER_PAGE;
+              const endIdx = startIdx + EVENTS_PER_PAGE;
+              const pageEvents = new Set(allGroupedEvents.slice(startIdx, endIdx).map((e) => e.id));
+
+              // Filter groups to only include events on the current page
+              const pagedGroups = countryGroups
+                .map((g) => ({ ...g, events: g.events.filter((e) => pageEvents.has(e.id)) }))
+                .filter((g) => g.events.length > 0);
+
+              return (
+                <>
+                  <div className="space-y-10">
+                    {pagedGroups.map((group) => (
+                      <div key={group.country}>
+                        <div className="flex items-center gap-3 mb-5">
+                          <h3 className="font-heading font-semibold text-xl text-foreground">
+                            {group.name}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-lighter text-muted border border-border">
+                            {group.events.length} {group.events.length === 1 ? "event" : "events"}
+                          </span>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {group.events.map((event) => (
+                            <EventCard
+                              key={event.id}
+                              event={event}
+                              onSelect={setSelectedEvent}
+                              distance={filters.sort === "nearby" ? distanceMap.get(event.id) : undefined}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-10">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="px-4 py-2 rounded-xl text-sm font-medium glass text-muted hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-muted">
+                        Page <span className="text-foreground font-semibold">{page}</span> of{" "}
+                        <span className="text-foreground font-semibold">{totalPages}</span>
+                      </span>
+                      <button
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="px-4 py-2 rounded-xl text-sm font-medium glass text-muted hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()
+          ) : (
+            (() => {
+              const totalPages = Math.ceil(filteredEvents.length / EVENTS_PER_PAGE);
+              const paginatedEvents = filteredEvents.slice(
+                (page - 1) * EVENTS_PER_PAGE,
+                page * EVENTS_PER_PAGE
+              );
+              return (
+                <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {group.events.map((event) => (
+                    {paginatedEvents.map((event) => (
                       <EventCard
                         key={event.id}
                         event={event}
@@ -582,20 +743,31 @@ export default function EventsPage() {
                       />
                     ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onSelect={setSelectedEvent}
-                  distance={filters.sort === "nearby" ? distanceMap.get(event.id) : undefined}
-                />
-              ))}
-            </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-10">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="px-4 py-2 rounded-xl text-sm font-medium glass text-muted hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-muted">
+                        Page <span className="text-foreground font-semibold">{page}</span> of{" "}
+                        <span className="text-foreground font-semibold">{totalPages}</span>
+                      </span>
+                      <button
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="px-4 py-2 rounded-xl text-sm font-medium glass text-muted hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()
           )
         ) : (
           <div className="glass rounded-2xl p-16 text-center">
