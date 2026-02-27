@@ -7,6 +7,7 @@ import { useEventComments, useCreateComment, useToggleCommentLike } from "@/hook
 import { useEventRsvp } from "@/hooks/useEventRsvp";
 import { useToast } from "@/components/ui/Toast";
 import { CommentSkeleton } from "@/components/ui/Skeleton";
+import { shareEvent } from "@/lib/shareEvent";
 
 const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
   official: { bg: "bg-badge-official/20", text: "text-badge-official", label: "Official" },
@@ -199,6 +200,21 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
               <span className="text-sm text-muted">{event.attendees + goingCount} going</span>
             </div>
           </div>
+
+          {/* Share */}
+          <button
+            onClick={async () => {
+              const result = await shareEvent(event);
+              if (result === "copied") toast("Link copied!");
+              else if (result === "failed") toast("Could not share event", "error");
+            }}
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl glass border border-border hover:border-drift-orange text-sm font-medium text-muted hover:text-drift-orange transition-all mb-6"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            Share Event
+          </button>
 
           {/* Plan Your Trip - Monetization */}
           <div className="rounded-xl bg-surface-lighter border border-border p-5 mb-6">
