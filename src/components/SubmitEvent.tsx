@@ -1,21 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import { createBrowserClient } from "@supabase/ssr";
+import DatePicker from "@/components/DatePicker";
+import LocationPicker from "@/components/LocationPicker";
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function SubmitEvent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState({
-    name: "", date: "", location: "", category: "grassroots",
+    name: "", date: "", endDate: "", location: "", category: "grassroots",
     cageRequired: false, tireSize: "unlimited", skillLevel: "all",
     participation: "both" as "drive" | "watch" | "both",
     description: "", eventUrl: "", organizer: "", contactEmail: "",
+    lat: null as number | null, lng: null as number | null,
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Image upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const handleImageSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast("Please select an image file", "error");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast("Image must be under 5MB", "error");
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setImagePreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const resetForm = () => {
+    setSubmitted(false);
+    setForm({
+      name: "", date: "", endDate: "", location: "", category: "grassroots",
+      cageRequired: false, tireSize: "unlimited", skillLevel: "all",
+      participation: "both", description: "", eventUrl: "", organizer: "", contactEmail: "",
+      lat: null, lng: null,
+    });
+    removeImage();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,16 +68,43 @@ export default function SubmitEvent() {
       return;
     }
 
+    if (!form.date) {
+      toast("Please select a start date", "error");
+      return;
+    }
+
     setLoading(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
     );
 
+    // Upload image if present
+    let imageUrl: string | null = null;
+    if (imageFile) {
+      const ext = imageFile.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("event-images")
+        .upload(path, imageFile, { contentType: imageFile.type });
+
+      if (uploadError) {
+        toast("Image upload failed: " + uploadError.message, "error");
+        setLoading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("event-images")
+        .getPublicUrl(path);
+      imageUrl = urlData.publicUrl;
+    }
+
     const { error } = await supabase.from("submitted_events").insert({
       submitted_by: user.id,
       name: form.name,
       date: form.date,
+      end_date: form.endDate || null,
       location: form.location,
       category: form.category,
       cage_required: form.cageRequired,
@@ -45,6 +115,9 @@ export default function SubmitEvent() {
       event_url: form.eventUrl || null,
       organizer: form.organizer,
       contact_email: form.contactEmail,
+      image_url: imageUrl,
+      lat: form.lat,
+      lng: form.lng,
     });
 
     setLoading(false);
@@ -73,7 +146,7 @@ export default function SubmitEvent() {
               <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Pending Review</span>
             </div>
             <button
-              onClick={() => { setSubmitted(false); setForm({ name: "", date: "", location: "", category: "grassroots", cageRequired: false, tireSize: "unlimited", skillLevel: "all", participation: "both", description: "", eventUrl: "", organizer: "", contactEmail: "" }); }}
+              onClick={resetForm}
               className="block mx-auto mt-6 text-sm text-drift-orange hover:underline"
             >
               Submit another event
@@ -117,29 +190,48 @@ export default function SubmitEvent() {
             />
           </div>
 
-          {/* Date & Location */}
+          {/* Start Date & End Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Date *</label>
-              <input
-                type="date"
-                required
+              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Start Date *</label>
+              <DatePicker
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-drift-orange transition-colors"
+                onChange={(val) => setForm({ ...form, date: val })}
+                placeholder="Pick start date"
               />
             </div>
             <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Location *</label>
-              <input
-                type="text"
-                required
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-                placeholder="Track name, City, Country"
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
+              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">End Date</label>
+              <DatePicker
+                value={form.endDate}
+                onChange={(val) => setForm({ ...form, endDate: val })}
+                placeholder="Pick end date (optional)"
               />
             </div>
+          </div>
+
+          {/* Location text */}
+          <div>
+            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Location *</label>
+            <input
+              type="text"
+              required
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="Track name, City, Country"
+              className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
+            />
+          </div>
+
+          {/* Map Pin */}
+          <div>
+            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Pin Location on Map</label>
+            <p className="text-xs text-muted-dark mb-2">Click the map to place a pin, then drag to adjust</p>
+            <LocationPicker
+              lat={form.lat}
+              lng={form.lng}
+              onChange={(lat, lng) => setForm((prev) => ({ ...prev, lat, lng }))}
+            />
           </div>
 
           {/* Category & Cage */}
@@ -274,14 +366,52 @@ export default function SubmitEvent() {
             </div>
           </div>
 
-          {/* Image Upload placeholder */}
+          {/* Image Upload */}
           <div>
             <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Event Image</label>
-            <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-drift-orange/50 transition-colors cursor-pointer">
-              <svg className="mx-auto mb-3 text-muted-dark" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-              <p className="text-sm text-muted-dark">Click to upload or drag and drop</p>
-              <p className="text-xs text-muted-dark mt-1">PNG, JPG up to 5MB</p>
-            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageSelect(file);
+              }}
+            />
+            {imagePreview ? (
+              <div className="relative rounded-xl overflow-hidden border border-border">
+                <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover" />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 hover:bg-black flex items-center justify-center transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  const file = e.dataTransfer.files[0];
+                  if (file) handleImageSelect(file);
+                }}
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                  dragging ? "border-drift-orange bg-drift-orange/5" : "border-border hover:border-drift-orange/50"
+                }`}
+              >
+                <svg className="mx-auto mb-3 text-muted-dark" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                <p className="text-sm text-muted-dark">Click to upload or drag and drop</p>
+                <p className="text-xs text-muted-dark mt-1">PNG, JPG up to 5MB</p>
+              </div>
+            )}
           </div>
 
           {/* Note */}

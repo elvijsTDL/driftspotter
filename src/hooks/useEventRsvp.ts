@@ -11,12 +11,20 @@ function useSupabase() {
   ), []);
 }
 
+export interface RsvpAttendee {
+  user_id: string;
+  status: "going" | "interested";
+  username: string;
+  avatar_url: string | null;
+}
+
 export function useEventRsvp(eventId: string | null) {
   const supabase = useSupabase();
   const { user } = useAuth();
   const [userStatus, setUserStatus] = useState<"going" | "interested" | null>(null);
   const [goingCount, setGoingCount] = useState(0);
   const [interestedCount, setInterestedCount] = useState(0);
+  const [attendees, setAttendees] = useState<RsvpAttendee[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchRsvp = useCallback(async () => {
@@ -46,6 +54,40 @@ export function useEventRsvp(eventId: string | null) {
         .eq("user_id", user.id)
         .maybeSingle();
       setUserStatus((data?.status as "going" | "interested") ?? null);
+    }
+
+    // Fetch attendee profiles (most recent 8)
+    const { data: rsvpData } = await supabase
+      .from("event_rsvps")
+      .select("user_id, status")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: false })
+      .limit(8);
+
+    if (rsvpData && rsvpData.length > 0) {
+      const userIds = rsvpData.map((r: { user_id: string }) => r.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url")
+        .in("id", userIds);
+
+      const profileMap = new Map(
+        (profiles ?? []).map((p: { id: string; username: string; avatar_url: string | null }) => [p.id, p])
+      );
+
+      setAttendees(
+        rsvpData.map((r: { user_id: string; status: string }) => {
+          const profile = profileMap.get(r.user_id);
+          return {
+            user_id: r.user_id,
+            status: r.status as "going" | "interested",
+            username: profile?.username ?? "Unknown",
+            avatar_url: profile?.avatar_url ?? null,
+          };
+        })
+      );
+    } else {
+      setAttendees([]);
     }
 
     setLoading(false);
@@ -83,5 +125,5 @@ export function useEventRsvp(eventId: string | null) {
     }
   };
 
-  return { userStatus, goingCount, interestedCount, loading, toggleRsvp };
+  return { userStatus, goingCount, interestedCount, attendees, loading, toggleRsvp };
 }

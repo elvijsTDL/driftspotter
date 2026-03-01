@@ -41,9 +41,9 @@ export default function Navbar({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const avatarLetter = profile?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "?";
-  const displayName = profile?.username || user?.email?.split("@")[0] || "User";
-  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url;
+  const displayName = profile?.username || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
+  const avatarLetter = displayName[0]?.toUpperCase() || "?";
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
     <nav

@@ -186,7 +186,7 @@ export function useForumThreads(categoryId?: string | null) {
     fetchThreads();
   }, [fetchThreads]);
 
-  return { threads, loading, refetch: fetchThreads };
+  return { threads, setThreads, loading, refetch: fetchThreads };
 }
 
 // ─── Single Thread + Replies ───
@@ -351,7 +351,7 @@ export function useThread(threadId: string | null) {
     };
   }, [supabase, threadId, fetchThread]);
 
-  return { thread, replies, loading, refetch: fetchThread };
+  return { thread, setThread, replies, setReplies, loading, refetch: fetchThread };
 }
 
 // ─── Mutations ───

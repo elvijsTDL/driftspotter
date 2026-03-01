@@ -95,7 +95,7 @@ export default function Forum() {
   const { toast } = useToast();
   const { categories, loading: catsLoading } = useForumCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const { threads, loading: threadsLoading, refetch } = useForumThreads(selectedCategory);
+  const { threads, setThreads, loading: threadsLoading, refetch } = useForumThreads(selectedCategory);
   const { createThread, loading: createLoading } = useCreateThread();
   const { toggleLike } = useToggleLike();
   const [showNewThread, setShowNewThread] = useState(false);
@@ -134,8 +134,27 @@ export default function Forum() {
       toast("Please sign in to like", "error");
       return;
     }
-    await toggleLike({ threadId });
-    refetch();
+    // Optimistic update
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === threadId
+          ? { ...t, user_liked: !t.user_liked, like_count: t.like_count + (t.user_liked ? -1 : 1) }
+          : t
+      )
+    );
+    // Fire request in background — revert on error
+    toggleLike({ threadId }).then(({ error }) => {
+      if (error) {
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.id === threadId
+              ? { ...t, user_liked: !t.user_liked, like_count: t.like_count + (t.user_liked ? -1 : 1) }
+              : t
+          )
+        );
+        toast(error, "error");
+      }
+    });
   };
 
   const selectedCat = categories.find((c) => c.id === selectedCategory);

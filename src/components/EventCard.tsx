@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { type DriftEvent } from "@/data/events";
 import { shareEvent } from "@/lib/shareEvent";
 import { useToast } from "@/components/ui/Toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { createBrowserClient } from "@supabase/ssr";
 
 export const categoryColors: Record<string, { bg: string; text: string }> = {
   official: { bg: "bg-badge-official/20", text: "text-badge-official" },
@@ -44,13 +46,22 @@ export default function EventCard({
   event,
   onSelect,
   distance,
+  className,
 }: {
   event: DriftEvent;
   onSelect: (e: DriftEvent) => void;
   distance?: number;
+  className?: string;
 }) {
-  const [going, setGoing] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
+  ), []);
+  const [going, setGoing] = useState(false);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
+
   const cat = categoryColors[event.category];
   const pb = participationBadge(event.participation);
   const gradient = gradients[event.id.charCodeAt(0) % gradients.length];
@@ -62,9 +73,41 @@ export default function EventCard({
     else if (result === "failed") toast("Could not share event", "error");
   };
 
+  const handleGoing = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      toast("Please sign in to RSVP", "error");
+      return;
+    }
+    if (rsvpLoading) return;
+    setRsvpLoading(true);
+
+    if (going) {
+      await supabase
+        .from("event_rsvps")
+        .delete()
+        .eq("event_id", event.id)
+        .eq("user_id", user.id);
+      setGoing(false);
+    } else {
+      // Delete any existing RSVP first (e.g. "interested"), then insert "going"
+      await supabase
+        .from("event_rsvps")
+        .delete()
+        .eq("event_id", event.id)
+        .eq("user_id", user.id);
+      await supabase
+        .from("event_rsvps")
+        .insert({ event_id: event.id, user_id: user.id, status: "going" });
+      setGoing(true);
+      toast("You're going!");
+    }
+    setRsvpLoading(false);
+  };
+
   return (
-    <div className="group">
-      <div className="relative h-full rounded-2xl overflow-hidden glass hover:border-drift-orange/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40">
+    <div className={className ?? "group"} onClick={() => onSelect(event)}>
+      <div className="relative h-full rounded-2xl overflow-hidden glass hover:border-drift-orange/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 cursor-pointer">
         {/* Image placeholder */}
         <div className={`relative h-48 bg-gradient-to-br ${gradient} overflow-hidden`}>
           <div className="absolute inset-0 carbon-bg opacity-30" />
@@ -141,13 +184,6 @@ export default function EventCard({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="w-6 h-6 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[9px] text-muted">
-                    {String.fromCharCode(65 + i + event.id.charCodeAt(0))}
-                  </div>
-                ))}
-              </div>
               <span className="text-xs text-muted">{event.attendees} going</span>
             </div>
             <div className="relative z-20 flex items-center gap-1.5">
@@ -161,7 +197,8 @@ export default function EventCard({
                 </svg>
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setGoing(!going); }}
+                onClick={handleGoing}
+                disabled={rsvpLoading}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-95 ${
                   going
                     ? "bg-drift-orange text-white"
@@ -173,14 +210,6 @@ export default function EventCard({
             </div>
           </div>
         </div>
-
-        <button
-          onClick={() => onSelect(event)}
-          className="absolute inset-0 z-10 cursor-pointer"
-          aria-label={`View ${event.name} details`}
-        >
-          <span className="sr-only">View details</span>
-        </button>
       </div>
     </div>
   );

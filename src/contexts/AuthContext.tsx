@@ -12,7 +12,7 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
-  signInWithOAuth: (provider: "google" | "facebook") => Promise<void>;
+  signInWithOAuth: (provider: "google") => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithEmail: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -43,6 +43,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq("id", userId)
       .single();
     setProfile(data);
+
+    // Sync Google OAuth name/avatar to profile if missing
+    const profile = data as Profile | null;
+    if (profile) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const meta = authUser?.user_metadata;
+      if (meta) {
+        const googleName = (meta.full_name || meta.name) as string | undefined;
+        const googleAvatar = (meta.avatar_url || meta.picture) as string | undefined;
+        const needsName = googleName && profile.username === authUser?.email?.split("@")[0];
+        const needsAvatar = googleAvatar && !profile.avatar_url;
+
+        if (needsName || needsAvatar) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const updates: any = {};
+          if (needsName) updates.username = googleName;
+          if (needsAvatar) updates.avatar_url = googleAvatar;
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: updated } = await (supabase.from("profiles") as any)
+            .update(updates)
+            .eq("id", userId)
+            .select()
+            .single();
+          if (updated) setProfile(updated as Profile);
+        }
+      }
+    }
   }, [supabase]);
 
   useEffect(() => {
@@ -69,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase, fetchProfile]);
 
-  const signInWithOAuth = async (provider: "google" | "facebook") => {
+  const signInWithOAuth = async (provider: "google") => {
     await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${window.location.origin}/auth/callback` },

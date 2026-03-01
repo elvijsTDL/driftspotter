@@ -13,6 +13,7 @@ import {
   useToggleLike,
   type ForumReply,
 } from "@/hooks/useForum";
+import type { Dispatch, SetStateAction } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -26,16 +27,31 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function toggleReplyLike(
+  setReplies: Dispatch<SetStateAction<ForumReply[]>>,
+  replyId: string,
+) {
+  const update = (items: ForumReply[]): ForumReply[] =>
+    items.map((r) =>
+      r.id === replyId
+        ? { ...r, user_liked: !r.user_liked, like_count: r.like_count + (r.user_liked ? -1 : 1), children: r.children }
+        : { ...r, children: update(r.children) }
+    );
+  setReplies((prev) => update(prev));
+}
+
 function ReplyItem({
   reply,
   depth,
   threadId,
   onRefetch,
+  setReplies,
 }: {
   reply: ForumReply;
   depth: number;
   threadId: string;
   onRefetch: () => void;
+  setReplies: Dispatch<SetStateAction<ForumReply[]>>;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -77,8 +93,14 @@ function ReplyItem({
 
   const handleLike = async () => {
     if (!user) { toast("Please sign in to like", "error"); return; }
-    await toggleLike({ replyId: reply.id });
-    onRefetch();
+    // Optimistic update
+    toggleReplyLike(setReplies, reply.id);
+    toggleLike({ replyId: reply.id }).then(({ error }) => {
+      if (error) {
+        toggleReplyLike(setReplies, reply.id); // revert
+        toast(error, "error");
+      }
+    });
   };
 
   const avatarLetter = reply.author?.username?.[0]?.toUpperCase() || "?";
@@ -164,7 +186,7 @@ function ReplyItem({
 
       {/* Children */}
       {reply.children.map((child) => (
-        <ReplyItem key={child.id} reply={child} depth={depth + 1} threadId={threadId} onRefetch={onRefetch} />
+        <ReplyItem key={child.id} reply={child} depth={depth + 1} threadId={threadId} onRefetch={onRefetch} setReplies={setReplies} />
       ))}
     </div>
   );
@@ -173,7 +195,7 @@ function ReplyItem({
 export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { thread, replies, loading, refetch } = useThread(threadId);
+  const { thread, setThread, replies, setReplies, loading, refetch } = useThread(threadId);
   const { createReply, loading: replyLoading } = useCreateReply();
   const { updateThread } = useUpdateThread();
   const { deleteThread } = useDeleteThread();
@@ -229,8 +251,18 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
   const handleLikeThread = async () => {
     if (!user) { toast("Please sign in to like", "error"); return; }
-    await toggleLike({ threadId });
-    refetch();
+    // Optimistic update
+    setThread((prev) =>
+      prev ? { ...prev, user_liked: !prev.user_liked, like_count: prev.like_count + (prev.user_liked ? -1 : 1) } : prev
+    );
+    toggleLike({ threadId }).then(({ error }) => {
+      if (error) {
+        setThread((prev) =>
+          prev ? { ...prev, user_liked: !prev.user_liked, like_count: prev.like_count + (prev.user_liked ? -1 : 1) } : prev
+        );
+        toast(error, "error");
+      }
+    });
   };
 
   return (
@@ -346,7 +378,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           <div className="py-8 text-center text-sm text-muted">No replies yet. Be the first to respond!</div>
         ) : (
           replies.map((reply) => (
-            <ReplyItem key={reply.id} reply={reply} depth={0} threadId={threadId} onRefetch={refetch} />
+            <ReplyItem key={reply.id} reply={reply} depth={0} threadId={threadId} onRefetch={refetch} setReplies={setReplies} />
           ))
         )}
       </div>

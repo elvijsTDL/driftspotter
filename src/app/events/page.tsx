@@ -25,8 +25,9 @@ function getWeekRange(): { from: string; to: string } {
 function getMonthRange(): { from: string; to: string } {
   const now = new Date();
   const from = now.toISOString().split("T")[0];
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { from, to: endOfMonth.toISOString().split("T")[0] };
+  const end = new Date(now);
+  end.setDate(now.getDate() + 30);
+  return { from, to: end.toISOString().split("T")[0] };
 }
 
 function SkeletonCard() {
@@ -65,6 +66,7 @@ function SkeletonGrid() {
 interface Filters {
   search: string;
   categories: string[];
+  countries: string[];
   participation: "all" | "drive" | "watch";
   dateFrom: string;
   dateTo: string;
@@ -107,6 +109,7 @@ export default function EventsPage() {
   const [filters, setFilters] = useState<Filters>({
     search: "",
     categories: [],
+    countries: [],
     participation: "all",
     dateFrom: initialWeek.from,
     dateTo: initialWeek.to,
@@ -140,6 +143,24 @@ export default function EventsPage() {
         : [...f.categories, cat],
     }));
   };
+
+  const toggleCountry = (code: string) => {
+    setFilters((f) => ({
+      ...f,
+      countries: f.countries.includes(code)
+        ? f.countries.filter((c) => c !== code)
+        : [...f.countries, code],
+    }));
+  };
+
+  // Derive available countries from loaded events
+  const availableCountries = useMemo(() => {
+    const map = new Map<string, string>();
+    events.forEach((e) => {
+      if (!map.has(e.country)) map.set(e.country, getCountryName(e.country));
+    });
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [events]);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -175,6 +196,7 @@ export default function EventsPage() {
     let result = events.filter((e) => {
       if (filters.search && !e.name.toLowerCase().includes(filters.search.toLowerCase()) && !e.location.toLowerCase().includes(filters.search.toLowerCase())) return false;
       if (filters.categories.length > 0 && !filters.categories.includes(e.category)) return false;
+      if (filters.countries.length > 0 && !filters.countries.includes(e.country)) return false;
       if (filters.participation === "drive" && e.participation === "watch") return false;
       if (filters.participation === "watch" && e.participation === "drive") return false;
       if (filters.dateFrom && e.date < filters.dateFrom) return false;
@@ -220,6 +242,7 @@ export default function EventsPage() {
   const activeFilterCount = [
     filters.search,
     filters.categories.length > 0,
+    filters.countries.length > 0,
     filters.participation !== "all",
     filters.dateFrom,
     filters.dateTo,
@@ -378,6 +401,29 @@ export default function EventsPage() {
                 ))}
               </div>
 
+              {/* Countries */}
+              {availableCountries.length > 0 && (
+                <>
+                  <div className="w-px h-6 bg-border hidden sm:block" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-muted uppercase tracking-wider font-medium">Country:</span>
+                    {availableCountries.map(([code, name]) => (
+                      <button
+                        key={code}
+                        onClick={() => toggleCountry(code)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          filters.countries.includes(code)
+                            ? "bg-drift-orange/20 text-drift-orange ring-1 ring-drift-orange/30"
+                            : "bg-surface-lighter text-muted hover:text-foreground"
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <div className="w-px h-6 bg-border hidden sm:block" />
 
               {/* Participation */}
@@ -452,7 +498,7 @@ export default function EventsPage() {
               {/* Clear all */}
               {activeFilterCount > 0 && (
                 <button
-                  onClick={() => { setTimeRange("all"); setFilters({ search: "", categories: [], participation: "all", dateFrom: new Date().toISOString().split("T")[0], dateTo: "", sort: filters.sort }); }}
+                  onClick={() => { setTimeRange("all"); setFilters({ search: "", categories: [], countries: [], participation: "all", dateFrom: new Date().toISOString().split("T")[0], dateTo: "", sort: filters.sort }); }}
                   className="ml-auto text-xs text-drift-orange hover:underline"
                 >
                   Clear filters

@@ -291,6 +291,9 @@ export interface Database {
           event_url: string | null;
           organizer: string;
           contact_email: string;
+          image_url: string | null;
+          lat: number | null;
+          lng: number | null;
           status: "pending" | "approved" | "rejected";
           created_at: string;
         };
@@ -308,6 +311,9 @@ export interface Database {
           participation?: string;
           description?: string;
           event_url?: string | null;
+          image_url?: string | null;
+          lat?: number | null;
+          lng?: number | null;
           organizer: string;
           contact_email: string;
           status?: "pending" | "approved" | "rejected";

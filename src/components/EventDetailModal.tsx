@@ -43,7 +43,7 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
   const { user } = useAuth();
   const { toast } = useToast();
   const { comments, loading: commentsLoading, refetch: refetchComments } = useEventComments(event.id);
-  const { userStatus, goingCount, toggleRsvp } = useEventRsvp(event.id);
+  const { userStatus, goingCount, interestedCount, attendees, toggleRsvp } = useEventRsvp(event.id);
   const { createComment, loading: commentLoading } = useCreateComment();
   const { toggleLike: toggleCommentLike } = useToggleCommentLike();
   const [commentText, setCommentText] = useState("");
@@ -172,32 +172,50 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
           <p className="text-sm text-muted leading-relaxed mb-6">{event.description}</p>
 
           {/* RSVP */}
-          <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={() => handleRsvp("going")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
-                userStatus === "going" ? "bg-drift-orange text-white glow-orange" : "glass border border-border hover:border-drift-orange hover:text-drift-orange"
-              }`}
-            >
-              I&apos;m Going
-            </button>
-            <button
-              onClick={() => handleRsvp("interested")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
-                userStatus === "interested" ? "bg-drift-cyan/20 text-drift-cyan border border-drift-cyan/30" : "glass border border-border hover:border-drift-cyan hover:text-drift-cyan"
-              }`}
-            >
-              Interested
-            </button>
-            <div className="flex items-center gap-2 ml-auto">
-              <div className="flex -space-x-2">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="w-7 h-7 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[10px] text-muted">
-                    {String.fromCharCode(65 + i)}
-                  </div>
-                ))}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={() => handleRsvp("going")}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                  userStatus === "going" ? "bg-drift-orange text-white glow-orange" : "glass border border-border hover:border-drift-orange hover:text-drift-orange"
+                }`}
+              >
+                I&apos;m Going
+              </button>
+              <button
+                onClick={() => handleRsvp("interested")}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                  userStatus === "interested" ? "bg-drift-cyan/20 text-drift-cyan border border-drift-cyan/30" : "glass border border-border hover:border-drift-cyan hover:text-drift-cyan"
+                }`}
+              >
+                Interested
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              {attendees.length > 0 ? (
+                <div className="flex -space-x-2">
+                  {attendees.slice(0, 5).map((a) => (
+                    a.avatar_url ? (
+                      <img key={a.user_id} src={a.avatar_url} alt={a.username} title={a.username} className="w-8 h-8 rounded-full border-2 border-surface object-cover" />
+                    ) : (
+                      <div key={a.user_id} title={a.username} className="w-8 h-8 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[10px] text-muted font-semibold">
+                        {a.username[0]?.toUpperCase() || "?"}
+                      </div>
+                    )
+                  ))}
+                  {goingCount + interestedCount > 5 && (
+                    <div className="w-8 h-8 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[10px] text-muted font-semibold">
+                      +{goingCount + interestedCount - 5}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              <div className="flex items-center gap-3 text-sm text-muted">
+                <span><span className="text-drift-orange font-semibold">{goingCount}</span> going</span>
+                {interestedCount > 0 && (
+                  <span><span className="text-drift-cyan font-semibold">{interestedCount}</span> interested</span>
+                )}
               </div>
-              <span className="text-sm text-muted">{event.attendees + goingCount} going</span>
             </div>
           </div>
 
