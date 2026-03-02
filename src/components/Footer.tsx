@@ -10,10 +10,10 @@ const footerLinks = {
     { label: "Featured Events", href: "/events" },
   ],
   Community: [
-    { label: "Forum", href: "/forum" },
+    { label: "My Events", href: "/my-events" },
     { label: "Driver Profiles", href: "#" },
-    { label: "Car Builds", href: "/forum" },
-    { label: "Marketplace", href: "/forum" },
+    { label: "Browse Events", href: "/events" },
+    { label: "Event Map", href: "/map" },
   ],
   Legal: [
     { label: "Privacy Policy", href: "#" },
