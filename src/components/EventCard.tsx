@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import { type DriftEvent } from "@/data/events";
 import { shareEvent } from "@/lib/shareEvent";
 import { useToast } from "@/components/ui/Toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { createBrowserClient } from "@supabase/ssr";
 
 export const categoryColors: Record<string, { bg: string; text: string }> = {
   official: { bg: "bg-badge-official/20", text: "text-badge-official" },
@@ -53,14 +50,7 @@ export default function EventCard({
   distance?: number;
   className?: string;
 }) {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
-  ), []);
-  const [going, setGoing] = useState(false);
-  const [rsvpLoading, setRsvpLoading] = useState(false);
 
   const cat = categoryColors[event.category];
   const pb = participationBadge(event.participation);
@@ -71,38 +61,6 @@ export default function EventCard({
     const result = await shareEvent(event);
     if (result === "copied") toast("Link copied!");
     else if (result === "failed") toast("Could not share event", "error");
-  };
-
-  const handleGoing = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!user) {
-      toast("Please sign in to RSVP", "error");
-      return;
-    }
-    if (rsvpLoading) return;
-    setRsvpLoading(true);
-
-    if (going) {
-      await supabase
-        .from("event_rsvps")
-        .delete()
-        .eq("event_id", event.id)
-        .eq("user_id", user.id);
-      setGoing(false);
-    } else {
-      // Delete any existing RSVP first (e.g. "interested"), then insert "going"
-      await supabase
-        .from("event_rsvps")
-        .delete()
-        .eq("event_id", event.id)
-        .eq("user_id", user.id);
-      await supabase
-        .from("event_rsvps")
-        .insert({ event_id: event.id, user_id: user.id, status: "going" });
-      setGoing(true);
-      toast("You're going!");
-    }
-    setRsvpLoading(false);
   };
 
   return (
@@ -184,7 +142,7 @@ export default function EventCard({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted">{event.attendees} going</span>
+              <span className="text-xs text-muted">{event.attendees} attending</span>
             </div>
             <div className="relative z-20 flex items-center gap-1.5">
               <button
@@ -196,17 +154,9 @@ export default function EventCard({
                   <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
                 </svg>
               </button>
-              <button
-                onClick={handleGoing}
-                disabled={rsvpLoading}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-95 ${
-                  going
-                    ? "bg-drift-orange text-white"
-                    : "border border-border-light text-muted hover:border-drift-orange hover:text-drift-orange"
-                }`}
-              >
-                {going ? "Going!" : "I'm Going"}
-              </button>
+              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border-light text-muted">
+                Apply
+              </span>
             </div>
           </div>
         </div>

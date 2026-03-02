@@ -9,11 +9,10 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-const navLinks = [
+const baseNavLinks = [
   { label: "Home", href: "/" },
   { label: "Events", href: "/events" },
   { label: "Map", href: "/map" },
-  { label: "Forum", href: "/forum" },
   { label: "Submit Event", href: "/submit" },
 ];
 
@@ -40,6 +39,10 @@ export default function Navbar({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const navLinks = user
+    ? [...baseNavLinks.slice(0, 3), { label: "My Events", href: "/my-events" }, baseNavLinks[3]]
+    : baseNavLinks;
 
   const displayName = profile?.username || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
   const avatarLetter = displayName[0]?.toUpperCase() || "?";
@@ -116,6 +119,18 @@ export default function Navbar({
                         <p className="text-xs text-muted truncate">{user.email}</p>
                       </div>
                       <div className="py-1">
+                        {profile?.is_admin && (
+                          <a
+                            href="/admin"
+                            onClick={() => setDropdownOpen(false)}
+                            className="w-full text-left px-4 py-2.5 text-sm text-drift-orange hover:bg-surface-lighter transition-colors flex items-center gap-2"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            </svg>
+                            Admin Dashboard
+                          </a>
+                        )}
                         <button
                           onClick={async () => { setDropdownOpen(false); await signOut(); }}
                           className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-surface-lighter transition-colors flex items-center gap-2"
@@ -182,6 +197,15 @@ export default function Navbar({
                 )}
                 <span className="text-sm font-medium text-foreground">{displayName}</span>
               </div>
+              {profile?.is_admin && (
+                <a
+                  href="/admin"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-3 text-sm font-medium text-drift-orange hover:bg-surface-lighter rounded-lg transition-colors"
+                >
+                  Admin Dashboard
+                </a>
+              )}
               <button
                 onClick={async () => { setMobileOpen(false); await signOut(); }}
                 className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-surface-lighter rounded-lg transition-colors"

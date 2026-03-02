@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import { createBrowserClient } from "@supabase/ssr";
@@ -18,6 +18,8 @@ export default function SubmitEvent() {
     participation: "both" as "drive" | "watch" | "both",
     description: "", eventUrl: "", organizer: "", contactEmail: "",
     lat: null as number | null, lng: null as number | null,
+    track: "", country: "", series: "", price: "",
+    maxParticipants: "" as string,
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,6 +29,25 @@ export default function SubmitEvent() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+
+  // Reverse geocode to auto-detect country from map pin
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await res.json();
+      const code = data?.address?.country_code?.toUpperCase();
+      if (code) setForm((prev) => ({ ...prev, country: code }));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (form.lat == null || form.lng == null) return;
+    const timer = setTimeout(() => reverseGeocode(form.lat!, form.lng!), 500);
+    return () => clearTimeout(timer);
+  }, [form.lat, form.lng, reverseGeocode]);
 
   const handleImageSelect = (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -56,6 +77,7 @@ export default function SubmitEvent() {
       cageRequired: false, tireSize: "unlimited", skillLevel: "all",
       participation: "both", description: "", eventUrl: "", organizer: "", contactEmail: "",
       lat: null, lng: null,
+      track: "", country: "", series: "", price: "", maxParticipants: "",
     });
     removeImage();
   };
@@ -118,6 +140,11 @@ export default function SubmitEvent() {
       image_url: imageUrl,
       lat: form.lat,
       lng: form.lng,
+      track: form.track,
+      country: form.country,
+      series: form.series || null,
+      price: form.price || null,
+      max_participants: form.maxParticipants ? parseInt(form.maxParticipants) : null,
     });
 
     setLoading(false);
@@ -231,6 +258,89 @@ export default function SubmitEvent() {
               lat={form.lat}
               lng={form.lng}
               onChange={(lat, lng) => setForm((prev) => ({ ...prev, lat, lng }))}
+            />
+          </div>
+
+          {/* Track / Venue & Country */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Track / Venue Name *</label>
+              <input
+                type="text"
+                required
+                value={form.track}
+                onChange={(e) => setForm({ ...form, track: e.target.value })}
+                placeholder="e.g. Ebisu Circuit"
+                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Country {form.country && <span className="text-drift-orange normal-case">(auto-detected)</span>}</label>
+              <select
+                value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })}
+                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-drift-orange transition-colors"
+              >
+                <option value="">Select country...</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="JP">Japan</option>
+                <option value="DE">Germany</option>
+                <option value="IE">Ireland</option>
+                <option value="PL">Poland</option>
+                <option value="NO">Norway</option>
+                <option value="LT">Lithuania</option>
+                <option value="LV">Latvia</option>
+                <option value="EE">Estonia</option>
+                <option value="AT">Austria</option>
+                <option value="IT">Italy</option>
+                <option value="FR">France</option>
+                <option value="ES">Spain</option>
+                <option value="NL">Netherlands</option>
+                <option value="SE">Sweden</option>
+                <option value="FI">Finland</option>
+                <option value="AU">Australia</option>
+                <option value="NZ">New Zealand</option>
+                <option value="CA">Canada</option>
+                <option value="TH">Thailand</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Series & Price */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Series Name</label>
+              <input
+                type="text"
+                value={form.series}
+                onChange={(e) => setForm({ ...form, series: e.target.value })}
+                placeholder="e.g. Drift Masters (optional)"
+                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Price</label>
+              <input
+                type="text"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                placeholder='e.g. $50, Free, €45 (optional)'
+                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Max Participants */}
+          <div>
+            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Max Participants</label>
+            <input
+              type="number"
+              min="1"
+              value={form.maxParticipants}
+              onChange={(e) => setForm({ ...form, maxParticipants: e.target.value })}
+              placeholder="Leave empty for unlimited"
+              className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
             />
           </div>
 

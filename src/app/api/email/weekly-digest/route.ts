@@ -17,21 +17,8 @@ export async function GET() {
       return NextResponse.json({ sent: 0 });
     }
 
-    // Get hot threads from the past week
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: hotThreads } = await supabase
-      .from("forum_threads")
-      .select("id, title")
-      .gte("created_at", weekAgo)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const threads = ((hotThreads || []) as any[]).map((t) => ({
-      title: t.title as string,
-      replyCount: 0,
-      url: `https://driftspotter.com/forum/${t.id}`,
-    }));
+    // Forum removed — threads section is empty
+    const threads: { title: string; replyCount: number; url: string }[] = [];
 
     // Get upcoming events from DB (next 2 weeks)
     const now = new Date().toISOString().split("T")[0];

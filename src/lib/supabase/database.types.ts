@@ -19,6 +19,7 @@ export interface Database {
           mods: string | null;
           skill_level: "beginner" | "intermediate" | "advanced" | null;
           instagram: string | null;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -31,6 +32,7 @@ export interface Database {
           mods?: string | null;
           skill_level?: "beginner" | "intermediate" | "advanced" | null;
           instagram?: string | null;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -43,108 +45,9 @@ export interface Database {
           mods?: string | null;
           skill_level?: "beginner" | "intermediate" | "advanced" | null;
           instagram?: string | null;
+          is_admin?: boolean;
           updated_at?: string;
         };
-      };
-      forum_categories: {
-        Row: {
-          id: string;
-          name: string;
-          description: string;
-          icon: string;
-          color: string;
-          sort_order: number;
-          created_at: string;
-        };
-        Insert: {
-          id: string;
-          name: string;
-          description: string;
-          icon: string;
-          color: string;
-          sort_order?: number;
-          created_at?: string;
-        };
-        Update: {
-          name?: string;
-          description?: string;
-          icon?: string;
-          color?: string;
-          sort_order?: number;
-        };
-      };
-      forum_threads: {
-        Row: {
-          id: string;
-          category_id: string;
-          author_id: string;
-          title: string;
-          body: string;
-          tag: string;
-          pinned: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          category_id: string;
-          author_id: string;
-          title: string;
-          body: string;
-          tag: string;
-          pinned?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          category_id?: string;
-          title?: string;
-          body?: string;
-          tag?: string;
-          pinned?: boolean;
-          updated_at?: string;
-        };
-      };
-      forum_replies: {
-        Row: {
-          id: string;
-          thread_id: string;
-          author_id: string;
-          parent_reply_id: string | null;
-          body: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          thread_id: string;
-          author_id: string;
-          parent_reply_id?: string | null;
-          body: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          body?: string;
-          updated_at?: string;
-        };
-      };
-      likes: {
-        Row: {
-          id: string;
-          user_id: string;
-          thread_id: string | null;
-          reply_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          thread_id?: string | null;
-          reply_id?: string | null;
-          created_at?: string;
-        };
-        Update: never;
       };
       event_comments: {
         Row: {
@@ -190,18 +93,20 @@ export interface Database {
           id: string;
           event_id: string;
           user_id: string;
-          status: "going" | "interested";
+          status: "pending" | "approved" | "rejected";
+          message: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           event_id: string;
           user_id: string;
-          status: "going" | "interested";
+          status: "pending" | "approved" | "rejected";
+          message?: string | null;
           created_at?: string;
         };
         Update: {
-          status?: "going" | "interested";
+          status?: "pending" | "approved" | "rejected";
         };
       };
       notifications: {
@@ -294,6 +199,11 @@ export interface Database {
           image_url: string | null;
           lat: number | null;
           lng: number | null;
+          track: string;
+          country: string;
+          series: string | null;
+          price: string | null;
+          max_participants: number | null;
           status: "pending" | "approved" | "rejected";
           created_at: string;
         };
@@ -316,10 +226,36 @@ export interface Database {
           lng?: number | null;
           organizer: string;
           contact_email: string;
+          track?: string;
+          country?: string;
+          series?: string | null;
+          price?: string | null;
+          max_participants?: number | null;
           status?: "pending" | "approved" | "rejected";
           created_at?: string;
         };
         Update: {
+          name?: string;
+          date?: string;
+          end_date?: string | null;
+          location?: string;
+          category?: string;
+          cage_required?: boolean;
+          tire_size?: string;
+          skill_level?: string;
+          participation?: string;
+          description?: string;
+          event_url?: string | null;
+          image_url?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          organizer?: string;
+          contact_email?: string;
+          track?: string;
+          country?: string;
+          series?: string | null;
+          price?: string | null;
+          max_participants?: number | null;
           status?: "pending" | "approved" | "rejected";
         };
       };

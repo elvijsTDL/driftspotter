@@ -43,19 +43,29 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
   const { user } = useAuth();
   const { toast } = useToast();
   const { comments, loading: commentsLoading, refetch: refetchComments } = useEventComments(event.id);
-  const { userStatus, goingCount, interestedCount, attendees, toggleRsvp } = useEventRsvp(event.id);
+  const { userStatus, approvedCount, pendingCount, attendees, applyToAttend, withdrawApplication } = useEventRsvp(event.id);
   const { createComment, loading: commentLoading } = useCreateComment();
   const { toggleLike: toggleCommentLike } = useToggleCommentLike();
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [applyMessage, setApplyMessage] = useState("");
+  const [showApplyForm, setShowApplyForm] = useState(false);
 
   const cat = categoryColors[event.category];
   const gradient = gradients[event.id.charCodeAt(0) % gradients.length];
 
-  const handleRsvp = async (status: "going" | "interested") => {
-    if (!user) { toast("Please sign in to RSVP", "error"); return; }
-    await toggleRsvp(status);
+  const handleApply = async () => {
+    if (!user) { toast("Please sign in to apply", "error"); return; }
+    await applyToAttend(applyMessage || undefined);
+    setApplyMessage("");
+    setShowApplyForm(false);
+    toast("Application submitted!");
+  };
+
+  const handleWithdraw = async () => {
+    await withdrawApplication();
+    toast("Application withdrawn");
   };
 
   const handleComment = async () => {
@@ -171,28 +181,73 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
           {/* Description */}
           <p className="text-sm text-muted leading-relaxed mb-6">{event.description}</p>
 
-          {/* RSVP */}
+          {/* RSVP / Apply */}
           <div className="mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <button
-                onClick={() => handleRsvp("going")}
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
-                  userStatus === "going" ? "bg-drift-orange text-white glow-orange" : "glass border border-border hover:border-drift-orange hover:text-drift-orange"
-                }`}
-              >
-                I&apos;m Going
-              </button>
-              <button
-                onClick={() => handleRsvp("interested")}
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
-                  userStatus === "interested" ? "bg-drift-cyan/20 text-drift-cyan border border-drift-cyan/30" : "glass border border-border hover:border-drift-cyan hover:text-drift-cyan"
-                }`}
-              >
-                Interested
-              </button>
+            <div className="mb-4">
+              {userStatus === null && (
+                <>
+                  {showApplyForm ? (
+                    <div className="space-y-3">
+                      <textarea
+                        value={applyMessage}
+                        onChange={(e) => setApplyMessage(e.target.value)}
+                        placeholder="Tell the organizer why you'd like to attend (optional)..."
+                        rows={3}
+                        className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleApply}
+                          className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-drift-orange text-white hover:bg-drift-orange-light transition-all active:scale-95"
+                        >
+                          Submit Application
+                        </button>
+                        <button
+                          onClick={() => setShowApplyForm(false)}
+                          className="px-4 py-2.5 rounded-xl text-sm font-medium text-muted hover:text-foreground transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!user) { toast("Please sign in to apply", "error"); return; }
+                        setShowApplyForm(true);
+                      }}
+                      className="px-5 py-2.5 rounded-xl text-sm font-semibold glass border border-border hover:border-drift-orange hover:text-drift-orange transition-all active:scale-95"
+                    >
+                      Apply to Attend
+                    </button>
+                  )}
+                </>
+              )}
+              {userStatus === "pending" && (
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                    <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Application Pending</span>
+                  </span>
+                  <button onClick={handleWithdraw} className="text-xs text-muted hover:text-red-400 transition-colors underline">
+                    Withdraw
+                  </button>
+                </div>
+              )}
+              {userStatus === "approved" && (
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-badge-grassroots/10 border border-badge-grassroots/20">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  <span className="text-xs font-semibold text-badge-grassroots uppercase tracking-wider">You&apos;re In!</span>
+                </span>
+              )}
+              {userStatus === "rejected" && (
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20">
+                  <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Application Declined</span>
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3">
-              {attendees.length > 0 ? (
+              {attendees.length > 0 && (
                 <div className="flex -space-x-2">
                   {attendees.slice(0, 5).map((a) => (
                     a.avatar_url ? (
@@ -203,17 +258,20 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
                       </div>
                     )
                   ))}
-                  {goingCount + interestedCount > 5 && (
+                  {approvedCount > 5 && (
                     <div className="w-8 h-8 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[10px] text-muted font-semibold">
-                      +{goingCount + interestedCount - 5}
+                      +{approvedCount - 5}
                     </div>
                   )}
                 </div>
-              ) : null}
+              )}
               <div className="flex items-center gap-3 text-sm text-muted">
-                <span><span className="text-drift-orange font-semibold">{goingCount}</span> going</span>
-                {interestedCount > 0 && (
-                  <span><span className="text-drift-cyan font-semibold">{interestedCount}</span> interested</span>
+                <span><span className="text-drift-orange font-semibold">{approvedCount}</span> attending</span>
+                {event.maxParticipants && (
+                  <span className="text-muted-dark">/ {event.maxParticipants} spots</span>
+                )}
+                {pendingCount > 0 && (
+                  <span><span className="text-yellow-500 font-semibold">{pendingCount}</span> pending</span>
                 )}
               </div>
             </div>

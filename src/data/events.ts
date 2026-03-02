@@ -21,6 +21,7 @@ export interface DriftEvent {
   isHot?: boolean;
   participation: "drive" | "watch" | "both";
   organizer: string;
+  maxParticipants?: number;
 }
 
 export const events: DriftEvent[] = [
@@ -600,39 +601,6 @@ export const videoHighlights = [
   },
 ];
 
-export const forumCategories = [
-  { id: "general", name: "General Discussion", description: "Chat about anything drift-related", icon: "message-circle", posts: 2847, lastActivity: "2 min ago", color: "#FF6B00" },
-  { id: "reviews", name: "Event Reviews & Reports", description: "Share your event experiences and reviews", icon: "star", posts: 1203, lastActivity: "15 min ago", color: "#FFD700" },
-  { id: "builds", name: "Car Builds & Setup", description: "Build threads, setup advice, and tech talk", icon: "wrench", posts: 3412, lastActivity: "5 min ago", color: "#00D4FF" },
-  { id: "tires", name: "Tire Talk", description: "Tire recommendations, reviews, and sizing", icon: "circle", posts: 892, lastActivity: "1 hr ago", color: "#22C55E" },
-  { id: "beginners", name: "Beginners Corner", description: "New to drifting? Start here. No question is too basic", icon: "graduation-cap", posts: 1567, lastActivity: "8 min ago", color: "#A855F7" },
-  { id: "marketplace", name: "Marketplace", description: "Buy, sell, and trade parts, cars, and gear", icon: "shopping-bag", posts: 4210, lastActivity: "1 min ago", color: "#EF4444" },
-];
-
-export const forumThreads = [
-  { id: "t1", categoryId: "builds", title: "My 600hp LS3 S14 Build Thread - Finally Complete!", author: "DriftKingMike", authorAvatar: "M", replies: 247, views: 12400, lastReply: "3 min ago", pinned: true, tag: "Build Thread", likes: 89 },
-  { id: "t2", categoryId: "general", title: "Who's heading to Drift Masters Rd.1 at Mondello?", author: "IrishSlider", authorAvatar: "I", replies: 56, views: 2100, lastReply: "12 min ago", pinned: false, tag: "Discussion", likes: 23 },
-  { id: "t3", categoryId: "tires", title: "Nankang AR-1 vs Federal 595RS-RR for comp use?", author: "TireWhisperer", authorAvatar: "T", replies: 89, views: 5600, lastReply: "45 min ago", pinned: false, tag: "Question", likes: 34 },
-  { id: "t4", categoryId: "beginners", title: "First drift event next week - what do I need to know?", author: "NewSlider22", authorAvatar: "N", replies: 42, views: 3200, lastReply: "1 hr ago", pinned: true, tag: "Question", likes: 67 },
-  { id: "t5", categoryId: "marketplace", title: "[FOR SALE] R154 gearbox + adapter kit for JZ swap", author: "JZswapKing", authorAvatar: "J", replies: 12, views: 890, lastReply: "2 hr ago", pinned: false, tag: "For Sale", likes: 5 },
-  { id: "t6", categoryId: "reviews", title: "Ebisu Spring Camp 2026 - Full Review & Photos", author: "TokyoDrifta", authorAvatar: "T", replies: 78, views: 8900, lastReply: "30 min ago", pinned: false, tag: "Review", likes: 112 },
-  { id: "t7", categoryId: "builds", title: "Budget E36 drift build - Under $5k challenge", author: "BudgetSlide", authorAvatar: "B", replies: 156, views: 9200, lastReply: "20 min ago", pinned: false, tag: "Build Thread", likes: 78 },
-  { id: "t8", categoryId: "general", title: "Unpopular opinion: 225 tire limits make better events", author: "ControversialCarl", authorAvatar: "C", replies: 203, views: 7800, lastReply: "5 min ago", pinned: false, tag: "Discussion", likes: 45 },
-  { id: "t9", categoryId: "beginners", title: "Best budget car for learning to drift in Europe?", author: "EuroDriftNoob", authorAvatar: "E", replies: 67, views: 4100, lastReply: "3 hr ago", pinned: false, tag: "Question", likes: 29 },
-  { id: "t10", categoryId: "marketplace", title: "[WTB] Angle kit for S13/S14 - UK based", author: "AngleHunter", authorAvatar: "A", replies: 8, views: 340, lastReply: "6 hr ago", pinned: false, tag: "Wanted", likes: 2 },
-];
-
-export const sampleComments = [
-  { id: "c1", user: "DriftKingMike", avatar: "M", text: "Can't wait for this one! Booked my hotel already. Anyone want to carpool from Dublin?", time: "2 hours ago", likes: 12, replies: [
-    { id: "c1r1", user: "IrishSlider", avatar: "I", text: "I'm driving down from Belfast, could pick up on the way!", time: "1 hour ago", likes: 5 },
-    { id: "c1r2", user: "DriftKingMike", avatar: "M", text: "Legend! DM me your details", time: "45 min ago", likes: 2 },
-  ]},
-  { id: "c2", user: "TireWhisperer", avatar: "T", text: "The track layout this year looks insane. That new hairpin section is going to separate the pros from the amateurs.", time: "5 hours ago", likes: 8, replies: [] },
-  { id: "c3", user: "TokyoDrifta", avatar: "T", text: "Flying in from Tokyo for this. Anyone know good spots to stay near the circuit?", time: "1 day ago", likes: 15, replies: [
-    { id: "c3r1", user: "NewSlider22", avatar: "N", text: "There's a Premier Inn about 10 min drive from the track, pretty decent!", time: "20 hours ago", likes: 3 },
-  ]},
-  { id: "c4", user: "BudgetSlide", avatar: "B", text: "First time attending a pro event as a spectator. The energy at these is unreal compared to watching on YouTube.", time: "3 hours ago", likes: 22, replies: [] },
-];
 
 export const sampleUsers = [
   { id: "u1", name: "DriftKingMike", avatar: "M", joinDate: "Jan 2024", car: "Nissan S14 Silvia", carYear: "1997", mods: "LS3 swap, Wisefab, BC Racing coils", eventsAttended: 23, forumPosts: 347, skillLevel: "advanced", instagram: "@driftkingmike" },

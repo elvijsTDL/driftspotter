@@ -28,12 +28,13 @@ async function fetchEvents(): Promise<DriftEvent[]> {
     return [];
   }
 
-  // Batch-fetch RSVP counts
+  // Batch-fetch approved RSVP counts only
   const eventIds = data.map((e: { id: string }) => e.id);
   const { data: rsvpCounts } = await supabase
     .from("event_rsvps")
     .select("event_uuid")
-    .in("event_uuid", eventIds);
+    .in("event_uuid", eventIds)
+    .eq("status", "approved");
 
   const countMap = new Map<string, number>();
   if (rsvpCounts) {
@@ -68,6 +69,7 @@ async function fetchEvents(): Promise<DriftEvent[]> {
       isHot: row.is_hot,
       participation: row.participation,
       organizer: row.organizer,
+      maxParticipants: row.max_participants || undefined,
     }));
 }
 
