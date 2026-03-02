@@ -30,10 +30,10 @@ CREATE POLICY "Users and admins can view submitted events"
     OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
   );
 
--- 7. Migrate existing RSVPs and change constraint
+-- 7. Drop old constraint FIRST, then migrate data, then add new constraint
+ALTER TABLE public.event_rsvps DROP CONSTRAINT IF EXISTS event_rsvps_status_check;
 UPDATE public.event_rsvps SET status = 'approved' WHERE status = 'going';
 UPDATE public.event_rsvps SET status = 'pending' WHERE status = 'interested';
-ALTER TABLE public.event_rsvps DROP CONSTRAINT IF EXISTS event_rsvps_status_check;
 ALTER TABLE public.event_rsvps ADD CONSTRAINT event_rsvps_status_check
   CHECK (status IN ('pending', 'approved', 'rejected'));
 
