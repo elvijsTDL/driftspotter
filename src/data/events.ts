@@ -14,14 +14,20 @@ export interface DriftEvent {
   tireSize: "205" | "225" | "unlimited";
   skillLevel: "beginner" | "intermediate" | "advanced" | "all";
   description: string;
+  safetyRequirements?: string;
+  requiredEquipment?: string[];
+  acceptsMedia?: boolean;
+  requiresEmergencyContact?: boolean;
   eventUrl?: string;
   imageUrl?: string;
+  mediaUrls?: string[];
   price?: string;
   attendees: number;
   isHot?: boolean;
   participation: "drive" | "watch" | "both";
   organizer: string;
   maxParticipants?: number;
+  submittedBy?: string;
 }
 
 export const events: DriftEvent[] = [

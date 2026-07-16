@@ -5,9 +5,17 @@ import { type DriftEvent } from "@/data/events";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEventComments, useCreateComment, useToggleCommentLike } from "@/hooks/useEventComments";
 import { useEventRsvp } from "@/hooks/useEventRsvp";
+import { useEmergencyContact } from "@/hooks/useProfile";
 import { useToast } from "@/components/ui/Toast";
 import { CommentSkeleton } from "@/components/ui/Skeleton";
 import { shareEvent } from "@/lib/shareEvent";
+import { EventGallery, SafetyRequirements } from "@/components/EventMedia";
+import ProfileCompletenessHint from "@/components/ProfileCompletenessHint";
+import ApplyCarPicker from "@/components/ApplyCarPicker";
+import ApplicationDetails from "@/components/ApplicationDetails";
+import { EventDocumentsList } from "@/components/EventDocuments";
+import { equipmentLabel } from "@/lib/equipment";
+import type { ApplicationRole } from "@/hooks/useEventRsvp";
 import { useState } from "react";
 
 const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
@@ -44,21 +52,37 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { comments, loading: commentsLoading, refetch: refetchComments } = useEventComments(event.id);
-  const { userStatus, approvedCount, pendingCount, attendees, applyToAttend, withdrawApplication } = useEventRsvp(event.id);
+  const { userStatus, userApplication, approvedCount, approvedMediaCount, pendingCount, attendees, applyToAttend, updateApplication, withdrawApplication } = useEventRsvp(event.id);
+  const { contact: myEmergencyContact, loading: emergencyLoading } = useEmergencyContact(user?.id ?? null);
   const { createComment, loading: commentLoading } = useCreateComment();
   const { toggleLike: toggleCommentLike } = useToggleCommentLike();
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [applyMessage, setApplyMessage] = useState("");
+  const [applyCarId, setApplyCarId] = useState<string | null>(null);
+  const [applyRole, setApplyRole] = useState<ApplicationRole>("driver");
   const [showApplyForm, setShowApplyForm] = useState(false);
 
   const cat = categoryColors[event.category];
   const gradient = gradients[event.id.charCodeAt(0) % gradients.length];
 
+  // Driver applications need an emergency contact when the organizer requires one.
+  const missingEmergencyContact =
+    !!event.requiresEmergencyContact && applyRole === "driver" && !emergencyLoading && !myEmergencyContact;
+
   const handleApply = async () => {
     if (!user) { toast("Please sign in to apply", "error"); return; }
-    await applyToAttend(applyMessage || undefined);
+    if (missingEmergencyContact) {
+      toast("Add an emergency contact to your profile to apply for this event", "error");
+      return;
+    }
+    const { error } = await applyToAttend(
+      applyMessage || undefined,
+      event.participation !== "watch" && applyRole === "driver" ? applyCarId : null,
+      applyRole
+    );
+    if (error) { toast(error, "error"); return; }
     setApplyMessage("");
     setShowApplyForm(false);
     toast("Application submitted!");
@@ -104,7 +128,11 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
         <div className="rounded-2xl glass overflow-hidden">
           {/* Header image */}
           <div className={`relative h-56 bg-gradient-to-br ${gradient}`}>
-            <div className="absolute inset-0 carbon-bg opacity-20" />
+            {event.imageUrl ? (
+              <img src={event.imageUrl} alt={event.name} className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 carbon-bg opacity-20" />
+            )}
             <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-surface to-transparent" />
             <div className="absolute bottom-4 left-6">
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${cat.bg} ${cat.text}`}>
@@ -122,7 +150,16 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
               {event.name}
             </h1>
 
-            <p className="text-sm text-muted mb-4">Organized by <span className="text-foreground font-medium">{event.organizer}</span></p>
+            <p className="text-sm text-muted mb-4">
+              Organized by{" "}
+              {event.submittedBy ? (
+                <Link href={`/organizers/${event.submittedBy}`} className="text-foreground font-medium hover:text-drift-orange transition-colors underline decoration-border underline-offset-4">
+                  {event.organizer}
+                </Link>
+              ) : (
+                <span className="text-foreground font-medium">{event.organizer}</span>
+              )}
+            </p>
 
             {/* Date & Location */}
             <div className="flex flex-col sm:flex-row gap-4 mb-5">
@@ -151,11 +188,11 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
                   </span>
                 );
               })()}
-              {event.cageRequired && (
-                <span className="px-3 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-                  Roll Cage Required
+              {(event.requiredEquipment ?? (event.cageRequired ? ["roll_cage"] : [])).map((key) => (
+                <span key={key} className="px-3 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                  {equipmentLabel(key)} Required
                 </span>
-              )}
+              ))}
               <span className="px-3 py-1 rounded-lg text-xs font-medium bg-surface-lighter text-muted border border-border">
                 Tires: {event.tireSize === "unlimited" ? "Unlimited" : `${event.tireSize} Max`}
               </span>
@@ -172,6 +209,15 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
             {/* Description */}
             <p className="text-sm text-muted leading-relaxed mb-6">{event.description}</p>
 
+            {/* Photo gallery (beyond the cover) */}
+            <EventGallery urls={event.mediaUrls?.slice(1) ?? []} eventName={event.name} />
+
+            {/* Safety requirements */}
+            <SafetyRequirements text={event.safetyRequirements} />
+
+            {/* Participant documents (visible once approved) */}
+            {userStatus === "approved" && <EventDocumentsList eventId={event.id} />}
+
             {/* RSVP / Apply */}
             <div className="mb-6">
               <div className="mb-4">
@@ -179,6 +225,33 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
                   <>
                     {showApplyForm ? (
                       <div className="space-y-3">
+                        {event.acceptsMedia && (
+                          <div>
+                            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Applying as</label>
+                            <div className="flex gap-2">
+                              {([
+                                { v: "driver" as const, l: "Driver" },
+                                { v: "media" as const, l: "Media / Photographer" },
+                              ]).map(({ v, l }) => (
+                                <button
+                                  key={v}
+                                  type="button"
+                                  onClick={() => setApplyRole(v)}
+                                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                                    applyRole === v
+                                      ? v === "media" ? "bg-drift-cyan text-white border-drift-cyan" : "bg-drift-orange text-white border-drift-orange"
+                                      : "bg-surface-lighter text-muted hover:text-foreground border-border"
+                                  }`}
+                                >
+                                  {l}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {event.participation !== "watch" && applyRole === "driver" && (
+                          <ApplyCarPicker selectedCarId={applyCarId} onSelect={setApplyCarId} requiredEquipment={event.requiredEquipment} />
+                        )}
                         <textarea
                           value={applyMessage}
                           onChange={(e) => setApplyMessage(e.target.value)}
@@ -186,10 +259,27 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
                           rows={3}
                           className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors resize-none"
                         />
+                        {applyRole === "driver" && <ProfileCompletenessHint participation={event.participation} />}
+                        {missingEmergencyContact && (
+                          <div className="flex items-start gap-2 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2.5">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-amber-400">
+                              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                            <p className="text-xs text-amber-200/90 leading-snug">
+                              This event requires an emergency contact. Add one on your{" "}
+                              <Link href="/profile" className="underline font-semibold hover:text-amber-100">profile</Link>{" "}
+                              before applying.
+                            </p>
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-dark">
+                          Your <Link href="/profile" className="text-drift-cyan hover:underline">driver profile</Link> (car, photos, event history) is shared with the organizer — keep it up to date.
+                        </p>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={handleApply}
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-drift-orange text-white hover:bg-drift-orange-light transition-all active:scale-95"
+                            disabled={missingEmergencyContact}
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-drift-orange text-white hover:bg-drift-orange-light transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-drift-orange"
                           >
                             Submit Application
                           </button>
@@ -215,21 +305,41 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
                   </>
                 )}
                 {userStatus === "pending" && (
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20">
-                      <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                      <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Application Pending</span>
-                    </span>
-                    <button onClick={handleWithdraw} className="text-xs text-muted hover:text-red-400 transition-colors underline">
-                      Withdraw
-                    </button>
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                        <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Application Pending</span>
+                      </span>
+                      <button onClick={handleWithdraw} className="text-xs text-muted hover:text-red-400 transition-colors underline">
+                        Withdraw
+                      </button>
+                    </div>
+                    {userApplication && (
+                      <ApplicationDetails
+                        application={userApplication}
+                        requiredEquipment={event.requiredEquipment}
+                        canEdit
+                        onSave={updateApplication}
+                      />
+                    )}
                   </div>
                 )}
                 {userStatus === "approved" && (
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-badge-grassroots/10 border border-badge-grassroots/20">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
-                    <span className="text-xs font-semibold text-badge-grassroots uppercase tracking-wider">You&apos;re In!</span>
-                  </span>
+                  <div>
+                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-badge-grassroots/10 border border-badge-grassroots/20">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      <span className="text-xs font-semibold text-badge-grassroots uppercase tracking-wider">You&apos;re In!</span>
+                    </span>
+                    {userApplication && (
+                      <ApplicationDetails
+                        application={userApplication}
+                        requiredEquipment={event.requiredEquipment}
+                        canEdit={false}
+                        onSave={updateApplication}
+                      />
+                    )}
+                  </div>
                 )}
                 {userStatus === "rejected" && (
                   <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20">
@@ -241,13 +351,15 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
                 {attendees.length > 0 && (
                   <div className="flex -space-x-2">
                     {attendees.slice(0, 5).map((a) => (
-                      a.avatar_url ? (
-                        <img key={a.user_id} src={a.avatar_url} alt={a.username} title={a.username} className="w-8 h-8 rounded-full border-2 border-surface object-cover" />
-                      ) : (
-                        <div key={a.user_id} title={a.username} className="w-8 h-8 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[10px] text-muted font-semibold">
-                          {a.username[0]?.toUpperCase() || "?"}
-                        </div>
-                      )
+                      <Link key={a.user_id} href={`/drivers/${a.user_id}`} title={a.username} className="hover:z-10 hover:-translate-y-0.5 transition-transform">
+                        {a.avatar_url ? (
+                          <img src={a.avatar_url} alt={a.username} className="w-8 h-8 rounded-full border-2 border-surface object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[10px] text-muted font-semibold">
+                            {a.username[0]?.toUpperCase() || "?"}
+                          </div>
+                        )}
+                      </Link>
                     ))}
                     {approvedCount > 5 && (
                       <div className="w-8 h-8 rounded-full bg-surface-lighter border-2 border-surface flex items-center justify-center text-[10px] text-muted font-semibold">
@@ -257,9 +369,12 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
                   </div>
                 )}
                 <div className="flex items-center gap-3 text-sm text-muted">
-                  <span><span className="text-drift-orange font-semibold">{approvedCount}</span> attending</span>
+                  <span><span className="text-drift-orange font-semibold">{approvedCount}</span> drivers</span>
                   {event.maxParticipants && (
                     <span className="text-muted-dark">/ {event.maxParticipants} spots</span>
+                  )}
+                  {approvedMediaCount > 0 && (
+                    <span><span className="text-drift-cyan font-semibold">{approvedMediaCount}</span> media</span>
                   )}
                   {pendingCount > 0 && (
                     <span><span className="text-yellow-500 font-semibold">{pendingCount}</span> pending</span>

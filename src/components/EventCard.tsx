@@ -66,12 +66,24 @@ export default function EventCard({
   return (
     <div className={className ?? "group"} onClick={() => onSelect(event)}>
       <div className="relative h-full rounded-2xl overflow-hidden glass hover:border-drift-orange/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 cursor-pointer">
-        {/* Image placeholder */}
+        {/* Cover image (gradient placeholder when the event has none) */}
         <div className={`relative h-48 bg-gradient-to-br ${gradient} overflow-hidden`}>
-          <div className="absolute inset-0 carbon-bg opacity-30" />
-          <svg className="absolute bottom-0 right-0 w-32 h-32 text-white/5" viewBox="0 0 100 100">
-            <path d="M10 90 Q 30 20 50 50 Q 70 80 90 30" stroke="currentColor" strokeWidth="3" fill="none" />
-          </svg>
+          {event.imageUrl ? (
+            <img
+              src={event.imageUrl}
+              alt={event.name}
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          ) : (
+            <>
+              <div className="absolute inset-0 carbon-bg opacity-30" />
+              <svg className="absolute bottom-0 right-0 w-32 h-32 text-white/5" viewBox="0 0 100 100">
+                <path d="M10 90 Q 30 20 50 50 Q 70 80 90 30" stroke="currentColor" strokeWidth="3" fill="none" />
+              </svg>
+            </>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
           <div className="absolute top-3 left-3">
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${cat.bg} ${cat.text}`}>
               {categoryLabels[event.category]}

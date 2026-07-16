@@ -125,13 +125,19 @@ export default async function EventSlugPage({
       tireSize: row.tire_size,
       skillLevel: row.skill_level,
       description: row.description,
+      safetyRequirements: row.safety_requirements || undefined,
+      requiredEquipment: row.required_equipment?.length ? row.required_equipment : undefined,
+      acceptsMedia: row.accepts_media || undefined,
+      requiresEmergencyContact: row.requires_emergency_contact || undefined,
       eventUrl: row.event_url || undefined,
       imageUrl: row.image_url || undefined,
+      mediaUrls: row.media_urls?.length ? row.media_urls : undefined,
       price: row.price || undefined,
       attendees: 0,
       isHot: row.is_hot,
       participation: row.participation,
       organizer: row.organizer,
+      submittedBy: row.submitted_by || undefined,
     };
 
     return <EventDetailPage event={event} />;

@@ -21,6 +21,7 @@ const categoryColors: Record<string, string> = {
 
 interface Filters {
   categories: string[];
+  countries: string[];
   cageRequired: string;
   tireSize: string;
   skillLevel: string;
@@ -28,6 +29,15 @@ interface Filters {
   participation: "all" | "drive" | "watch";
   dateFrom: string;
   dateTo: string;
+}
+
+function getCountryName(code: string): string {
+  try {
+    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    return names.of(code.toUpperCase()) || code;
+  } catch {
+    return code;
+  }
 }
 
 const participationBadge = (p: "drive" | "watch" | "both") => {
@@ -89,74 +99,6 @@ function MiniEventCard({ event, onSelect, distance }: { event: DriftEvent; onSel
   );
 }
 
-function CalendarView({ filteredEvents, onSelect }: { filteredEvents: DriftEvent[]; onSelect: (e: DriftEvent) => void }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 4, 1)); // May 2026
-
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const days = [];
-  for (let i = 0; i < firstDay; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
-
-  const getEventsForDay = (day: number) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return filteredEvents.filter((e) => {
-      if (e.date === dateStr) return true;
-      if (e.endDate && e.date <= dateStr && e.endDate >= dateStr) return true;
-      return false;
-    });
-  };
-
-  return (
-    <div className="mt-6 glass rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 hover:bg-surface-lighter rounded-lg transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-        </button>
-        <h3 className="font-heading font-semibold text-lg">
-          {currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-        </h3>
-        <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 hover:bg-surface-lighter rounded-lg transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="text-center text-xs text-muted-dark font-medium py-2">{d}</div>
-        ))}
-        {days.map((day, i) => {
-          const dayEvents = day ? getEventsForDay(day) : [];
-          return (
-            <div
-              key={i}
-              className={`relative min-h-[40px] rounded-lg flex flex-col items-center justify-center text-sm transition-colors ${
-                day ? "hover:bg-surface-lighter cursor-pointer" : ""
-              } ${dayEvents.length > 0 ? "bg-surface-lighter" : ""}`}
-              onClick={() => dayEvents.length > 0 && onSelect(dayEvents[0])}
-            >
-              {day && (
-                <>
-                  <span className={dayEvents.length > 0 ? "text-foreground font-medium" : "text-muted"}>{day}</span>
-                  {dayEvents.length > 0 && (
-                    <div className="flex gap-0.5 mt-0.5">
-                      {dayEvents.slice(0, 3).map((e) => (
-                        <div key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: categoryColors[e.category] }} />
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEvent) => void }) {
   const { events } = useEvents();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -164,12 +106,13 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
   const markersRef = useRef<Map<string, { getElement: () => HTMLElement; remove: () => void }>>(new Map());
   const userMarkerRef = useRef<{ remove: () => void } | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"map" | "calendar">("map");
+  const [mapReady, setMapReady] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [sortByDistance, setSortByDistance] = useState(false);
-  const [filters, setFilters] = useState<Filters>({
+  const defaultFilters: Filters = {
     categories: [],
+    countries: [],
     cageRequired: "all",
     tireSize: "all",
     skillLevel: "all",
@@ -177,7 +120,28 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
     participation: "all",
     dateFrom: "",
     dateTo: "",
-  });
+  };
+  const [filters, setFilters] = useState<Filters>(defaultFilters);
+
+  // Countries that actually have upcoming events, sorted by name
+  const availableCountries = useMemo(() => {
+    const codes = new Set<string>();
+    events.forEach((e) => { if (e.country) codes.add(e.country.toUpperCase()); });
+    return Array.from(codes)
+      .map((code) => ({ code, name: getCountryName(code) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [events]);
+
+  const activeFilterCount =
+    filters.categories.length +
+    filters.countries.length +
+    (filters.cageRequired !== "all" ? 1 : 0) +
+    (filters.tireSize !== "all" ? 1 : 0) +
+    (filters.skillLevel !== "all" ? 1 : 0) +
+    (filters.search ? 1 : 0) +
+    (filters.participation !== "all" ? 1 : 0) +
+    (filters.dateFrom ? 1 : 0) +
+    (filters.dateTo ? 1 : 0);
 
   const distanceMap = useMemo(() => {
     if (!userLocation) return new Map<string, number>();
@@ -191,6 +155,7 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
   const filteredEvents = useMemo(() => {
     const result = events.filter((e) => {
       if (filters.categories.length > 0 && !filters.categories.includes(e.category)) return false;
+      if (filters.countries.length > 0 && !filters.countries.includes(e.country?.toUpperCase())) return false;
       if (filters.cageRequired === "yes" && !e.cageRequired) return false;
       if (filters.cageRequired === "no" && e.cageRequired) return false;
       if (filters.tireSize !== "all" && e.tireSize !== filters.tireSize) return false;
@@ -215,9 +180,11 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
   }, [events, filters, sortByDistance, userLocation, distanceMap]);
 
   const filteredIds = useMemo(() => new Set(filteredEvents.map((e) => e.id)), [filteredEvents]);
+  const filteredIdsRef = useRef(filteredIds);
 
   // Sync marker visibility with filters
   useEffect(() => {
+    filteredIdsRef.current = filteredIds;
     markersRef.current.forEach((marker, eventId) => {
       const el = marker.getElement();
       el.style.display = filteredIds.has(eventId) ? "flex" : "none";
@@ -232,6 +199,32 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
         : [...f.categories, cat],
     }));
   };
+
+  const toggleCountry = (code: string) => {
+    setFilters((f) => ({
+      ...f,
+      countries: f.countries.includes(code)
+        ? f.countries.filter((c) => c !== code)
+        : [...f.countries, code],
+    }));
+  };
+
+  // Zoom the map to the selected countries' events
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || filters.countries.length === 0 || filteredEvents.length === 0) return;
+    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+    filteredEvents.forEach((e) => {
+      minLat = Math.min(minLat, e.lat); maxLat = Math.max(maxLat, e.lat);
+      minLng = Math.min(minLng, e.lng); maxLng = Math.max(maxLng, e.lng);
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (map as any).fitBounds(
+      [[minLng, minLat], [maxLng, maxLat]],
+      { padding: 80, maxZoom: 8, duration: 800 }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.countries]);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -301,22 +294,33 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
         },
         center: [15, 48],
         zoom: 3,
+        // Strict 2D map — no tilt or rotation
+        pitch: 0,
+        maxPitch: 0,
+        bearing: 0,
+        pitchWithRotate: false,
+        dragRotate: false,
+        touchPitch: false,
       });
-      map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+      map.touchZoomRotate.disableRotation();
+      map.keyboard.disableRotation();
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
       mapRef.current = map;
+      setMapReady(true);
     } catch (err) {
       console.error("Map init error:", err);
     }
   }, []);
 
   useEffect(() => {
-    if (viewMode === "map") initMap();
-  }, [viewMode, initMap]);
+    initMap();
+  }, [initMap]);
 
-  // Add markers when events load or change
+  // Add markers when events load or change (and once the async map init finishes —
+  // on a cold visit events often arrive before the MapLibre bundle does)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || events.length === 0) return;
+    if (!map || !mapReady || events.length === 0) return;
 
     // Clear existing markers
     markersRef.current.forEach((marker) => (marker as { remove: () => void }).remove());
@@ -331,7 +335,7 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
         el.className = "drift-marker";
         el.style.cssText = `
           width: 36px; height: 36px; cursor: pointer;
-          display: flex; align-items: center; justify-content: center;
+          display: ${filteredIdsRef.current.has(event.id) ? "flex" : "none"}; align-items: center; justify-content: center;
         `;
         const dot = document.createElement("div");
         dot.style.cssText = `
@@ -378,7 +382,7 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
     };
 
     addMarkers();
-  }, [events]);
+  }, [events, mapReady]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -427,18 +431,6 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
                 <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" /><line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
               </svg>
               {geoLoading ? "Locating..." : "Near Me"}
-            </button>
-            <button
-              onClick={() => setViewMode("map")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === "map" ? "bg-drift-orange text-white" : "glass text-muted hover:text-foreground"}`}
-            >
-              Map
-            </button>
-            <button
-              onClick={() => setViewMode("calendar")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === "calendar" ? "bg-drift-orange text-white" : "glass text-muted hover:text-foreground"}`}
-            >
-              Calendar
             </button>
           </div>
         </div>
@@ -535,6 +527,26 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
                 </div>
               </div>
 
+              {/* Country */}
+              {availableCountries.length > 0 && (
+                <div>
+                  <label className="text-xs text-muted uppercase tracking-wider font-medium">Country</label>
+                  <div className="mt-2 flex flex-wrap gap-2 max-h-[140px] overflow-y-auto no-scrollbar">
+                    {availableCountries.map(({ code, name }) => (
+                      <button
+                        key={code}
+                        onClick={() => toggleCountry(code)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          filters.countries.includes(code) ? "bg-drift-orange text-white" : "bg-surface-lighter text-muted hover:text-foreground"
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Cage Required */}
               <div>
                 <label className="text-xs text-muted uppercase tracking-wider font-medium">Cage Required</label>
@@ -589,11 +601,19 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
                 </div>
               </div>
 
-              {/* Results count */}
-              <div className="pt-3 border-t border-border">
+              {/* Results count + clear filters */}
+              <div className="pt-3 border-t border-border flex items-center justify-between">
                 <p className="text-sm text-muted">
                   <span className="text-drift-orange font-semibold">{filteredEvents.length}</span> events found
                 </p>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={() => setFilters(defaultFilters)}
+                    className="text-xs text-muted hover:text-drift-orange transition-colors underline"
+                  >
+                    Clear filters ({activeFilterCount})
+                  </button>
+                )}
               </div>
 
               {/* Event list */}
@@ -605,17 +625,13 @@ export default function EventMap({ onSelectEvent }: { onSelectEvent: (e: DriftEv
             </div>
           </div>
 
-          {/* Map / Calendar */}
+          {/* Map */}
           <div className="flex-1 min-w-0">
-            {viewMode === "map" ? (
-              <div className="relative rounded-2xl overflow-hidden border border-border" style={{ height: "600px" }}>
-                <div ref={mapContainerRef} className="w-full h-full" />
-                {/* Map overlay gradient at bottom */}
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background/50 to-transparent pointer-events-none" />
-              </div>
-            ) : (
-              <CalendarView filteredEvents={filteredEvents} onSelect={onSelectEvent} />
-            )}
+            <div className="relative rounded-2xl overflow-hidden border border-border" style={{ height: "600px" }}>
+              <div ref={mapContainerRef} className="w-full h-full" />
+              {/* Map overlay gradient at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background/50 to-transparent pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>

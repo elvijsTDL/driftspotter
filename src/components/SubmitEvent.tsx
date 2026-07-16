@@ -1,126 +1,44 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import { createBrowserClient } from "@supabase/ssr";
-import DatePicker from "@/components/DatePicker";
-import LocationPicker from "@/components/LocationPicker";
-
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+import EventForm, { type EventFormValues } from "@/components/EventForm";
+import OrganizerRequestForm from "@/components/OrganizerRequestForm";
+import { uploadImages } from "@/lib/uploadMedia";
 
 export default function SubmitEvent() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
-  const [form, setForm] = useState({
-    name: "", date: "", endDate: "", location: "", category: "grassroots",
-    cageRequired: false, tireSize: "unlimited", skillLevel: "all",
-    participation: "both" as "drive" | "watch" | "both",
-    description: "", eventUrl: "", organizer: "", contactEmail: "",
-    lat: null as number | null, lng: null as number | null,
-    track: "", country: "", series: "", price: "",
-    maxParticipants: "" as string,
-  });
+  const isTrusted = profile?.organizer_status === "trusted";
+  const isBlocked = profile?.organizer_status === "blocked";
+  // Admins can always submit; everyone else needs approved organizer access
+  const canSubmit = !!profile && (profile.is_admin || profile.organizer_status === "standard" || isTrusted);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
+  ), []);
 
-  // Image upload state
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
-
-  // Reverse geocode to auto-detect country from map pin
-  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-        { headers: { "Accept-Language": "en" } }
-      );
-      const data = await res.json();
-      const code = data?.address?.country_code?.toUpperCase();
-      if (code) setForm((prev) => ({ ...prev, country: code }));
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    if (form.lat == null || form.lng == null) return;
-    const timer = setTimeout(() => reverseGeocode(form.lat!, form.lng!), 500);
-    return () => clearTimeout(timer);
-  }, [form.lat, form.lng, reverseGeocode]);
-
-  const handleImageSelect = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast("Please select an image file", "error");
-      return;
-    }
-    if (file.size > MAX_IMAGE_SIZE) {
-      toast("Image must be under 5MB", "error");
-      return;
-    }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const resetForm = () => {
-    setSubmitted(false);
-    setForm({
-      name: "", date: "", endDate: "", location: "", category: "grassroots",
-      cageRequired: false, tireSize: "unlimited", skillLevel: "all",
-      participation: "both", description: "", eventUrl: "", organizer: "", contactEmail: "",
-      lat: null, lng: null,
-      track: "", country: "", series: "", price: "", maxParticipants: "",
-    });
-    removeImage();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async (form: EventFormValues, newImages: File[]) => {
     if (!user) {
       toast("Please sign in to submit an event", "error");
       return;
     }
 
-    if (!form.date) {
-      toast("Please select a start date", "error");
+    setLoading(true);
+
+    // Upload media
+    const { urls: uploaded, error: uploadError } = await uploadImages(supabase, "event-images", user.id, newImages);
+    if (uploadError) {
+      toast("Image upload failed: " + uploadError, "error");
+      setLoading(false);
       return;
     }
-
-    setLoading(true);
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
-    );
-
-    // Upload image if present
-    let imageUrl: string | null = null;
-    if (imageFile) {
-      const ext = imageFile.name.split(".").pop() || "jpg";
-      const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("event-images")
-        .upload(path, imageFile, { contentType: imageFile.type });
-
-      if (uploadError) {
-        toast("Image upload failed: " + uploadError.message, "error");
-        setLoading(false);
-        return;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from("event-images")
-        .getPublicUrl(path);
-      imageUrl = urlData.publicUrl;
-    }
+    const mediaUrls = [...form.mediaUrls, ...uploaded];
 
     const { error } = await supabase.from("submitted_events").insert({
       submitted_by: user.id,
@@ -134,10 +52,15 @@ export default function SubmitEvent() {
       skill_level: form.skillLevel,
       participation: form.participation,
       description: form.description,
+      safety_requirements: form.safetyRequirements,
+      required_equipment: form.requiredEquipment,
+      accepts_media: form.acceptsMedia,
+      requires_emergency_contact: form.requiresEmergencyContact,
       event_url: form.eventUrl || null,
       organizer: form.organizer,
       contact_email: form.contactEmail,
-      image_url: imageUrl,
+      image_url: mediaUrls[0] ?? null,
+      media_urls: mediaUrls,
       lat: form.lat,
       lng: form.lng,
       track: form.track,
@@ -165,19 +88,47 @@ export default function SubmitEvent() {
             <div className="w-16 h-16 rounded-full bg-badge-grassroots/20 flex items-center justify-center mx-auto mb-5">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
             </div>
-            <h3 className="font-heading font-bold text-2xl text-foreground mb-3">Event Submitted!</h3>
-            <p className="text-muted mb-2">Your event is now pending review.</p>
-            <p className="text-sm text-muted-dark mb-6">We typically review submissions within 24 hours. You&apos;ll receive an email confirmation once approved.</p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20">
-              <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-              <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Pending Review</span>
-            </div>
+            {isTrusted ? (
+              <>
+                <h3 className="font-heading font-bold text-2xl text-foreground mb-3">Event Published!</h3>
+                <p className="text-muted mb-2">As a trusted organizer, your event is live immediately.</p>
+                <p className="text-sm text-muted-dark mb-6">It&apos;s now visible on the map and events pages. Manage it and review applications from <a href="/my-events" className="text-drift-orange hover:underline">My Events</a>.</p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-badge-grassroots/10 border border-badge-grassroots/20">
+                  <span className="w-2 h-2 rounded-full bg-badge-grassroots" />
+                  <span className="text-xs font-semibold text-badge-grassroots uppercase tracking-wider">Live</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-heading font-bold text-2xl text-foreground mb-3">Event Submitted!</h3>
+                <p className="text-muted mb-2">Your event is now pending review.</p>
+                <p className="text-sm text-muted-dark mb-6">We typically review submissions within 24 hours. You&apos;ll receive an email confirmation once approved. Manage it anytime from <a href="/my-events" className="text-drift-orange hover:underline">My Events</a>.</p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20">
+                  <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Pending Review</span>
+                </div>
+              </>
+            )}
             <button
-              onClick={resetForm}
+              onClick={() => { setSubmitted(false); setFormKey((k) => k + 1); }}
               className="block mx-auto mt-6 text-sm text-drift-orange hover:underline"
             >
               Submit another event
             </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (isBlocked) {
+    return (
+      <section className="relative py-20 md:py-28">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        <div className="max-w-2xl mx-auto px-4 text-center">
+          <div className="glass rounded-2xl p-12 border border-red-500/20">
+            <h3 className="font-heading font-bold text-2xl text-foreground mb-3">Submissions Disabled</h3>
+            <p className="text-muted">Your account is currently not allowed to submit events. If you believe this is a mistake, contact us and we&apos;ll take a look.</p>
           </div>
         </div>
       </section>
@@ -194,353 +145,55 @@ export default function SubmitEvent() {
             SUBMIT AN EVENT
           </h2>
           <div className="tire-track w-20 mt-3" />
-          <p className="text-muted mt-3">Know about an upcoming drift event? Submit it and we&apos;ll add it to the map.</p>
+          <p className="text-muted mt-3">Organizing a drift event? Submit it and manage applications directly from your dashboard — no Google Forms needed.</p>
         </div>
 
-        {!user && (
-          <div className="glass rounded-2xl p-5 mb-6 border border-drift-orange/20 bg-drift-orange/5">
-            <p className="text-sm text-drift-orange">Please sign in to submit an event. Your submissions will be linked to your account.</p>
+        {!user ? (
+          <div className="glass rounded-2xl p-8 md:p-10">
+            <h3 className="font-heading font-bold text-xl text-foreground mb-3">For Real Organizers</h3>
+            <p className="text-sm text-muted leading-relaxed mb-4">
+              Publishing on DriftSpotter is reserved for verified event organizers — that&apos;s how we keep fake and spam events off the map. Sign in, request organizer access with a few details about your events, and you&apos;ll typically be approved within 24 hours.
+            </p>
+            <p className="text-sm text-drift-orange">Sign in from the top right to get started.</p>
           </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="glass rounded-2xl p-6 md:p-8 space-y-5">
-          {/* Event Name */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Event Name *</label>
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Grassroots Drift Day - Round 3"
-              className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-            />
-          </div>
-
-          {/* Start Date & End Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Start Date *</label>
-              <DatePicker
-                value={form.date}
-                onChange={(val) => setForm({ ...form, date: val })}
-                placeholder="Pick start date"
-              />
+        ) : profile?.organizer_status === "pending" ? (
+          <div className="glass rounded-2xl p-10 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-5">
+              <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+              <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Request Under Review</span>
             </div>
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">End Date</label>
-              <DatePicker
-                value={form.endDate}
-                onChange={(val) => setForm({ ...form, endDate: val })}
-                placeholder="Pick end date (optional)"
-              />
-            </div>
-          </div>
-
-          {/* Location text */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Location *</label>
-            <input
-              type="text"
-              required
-              value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
-              placeholder="Track name, City, Country"
-              className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-            />
-          </div>
-
-          {/* Map Pin */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Pin Location on Map</label>
-            <p className="text-xs text-muted-dark mb-2">Click the map to place a pin, then drag to adjust</p>
-            <LocationPicker
-              lat={form.lat}
-              lng={form.lng}
-              onChange={(lat, lng) => setForm((prev) => ({ ...prev, lat, lng }))}
-            />
-          </div>
-
-          {/* Track / Venue & Country */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Track / Venue Name *</label>
-              <input
-                type="text"
-                required
-                value={form.track}
-                onChange={(e) => setForm({ ...form, track: e.target.value })}
-                placeholder="e.g. Ebisu Circuit"
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Country {form.country && <span className="text-drift-orange normal-case">(auto-detected)</span>}</label>
-              <select
-                value={form.country}
-                onChange={(e) => setForm({ ...form, country: e.target.value })}
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-drift-orange transition-colors"
-              >
-                <option value="">Select country...</option>
-                <option value="US">United States</option>
-                <option value="GB">United Kingdom</option>
-                <option value="JP">Japan</option>
-                <option value="DE">Germany</option>
-                <option value="IE">Ireland</option>
-                <option value="PL">Poland</option>
-                <option value="NO">Norway</option>
-                <option value="LT">Lithuania</option>
-                <option value="LV">Latvia</option>
-                <option value="EE">Estonia</option>
-                <option value="AT">Austria</option>
-                <option value="IT">Italy</option>
-                <option value="FR">France</option>
-                <option value="ES">Spain</option>
-                <option value="NL">Netherlands</option>
-                <option value="SE">Sweden</option>
-                <option value="FI">Finland</option>
-                <option value="AU">Australia</option>
-                <option value="NZ">New Zealand</option>
-                <option value="CA">Canada</option>
-                <option value="TH">Thailand</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Series & Price */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Series Name</label>
-              <input
-                type="text"
-                value={form.series}
-                onChange={(e) => setForm({ ...form, series: e.target.value })}
-                placeholder="e.g. Drift Masters (optional)"
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Price</label>
-              <input
-                type="text"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                placeholder='e.g. $50, Free, €45 (optional)'
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Max Participants */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Max Participants</label>
-            <input
-              type="number"
-              min="1"
-              value={form.maxParticipants}
-              onChange={(e) => setForm({ ...form, maxParticipants: e.target.value })}
-              placeholder="Leave empty for unlimited"
-              className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-            />
-          </div>
-
-          {/* Category & Cage */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Category</label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-drift-orange transition-colors"
-              >
-                <option value="official">Official Championship</option>
-                <option value="proam">Pro-Am</option>
-                <option value="grassroots">Grassroots</option>
-                <option value="practice">Practice Day</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Cage Required</label>
-              <div className="flex items-center gap-3 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, cageRequired: !form.cageRequired })}
-                  className={`relative w-12 h-7 rounded-full transition-colors ${form.cageRequired ? "bg-drift-orange" : "bg-surface-lighter border border-border"}`}
-                >
-                  <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${form.cageRequired ? "left-6" : "left-1"}`} />
-                </button>
-                <span className="text-sm text-muted">{form.cageRequired ? "Yes" : "No"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Tire Size & Skill */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Max Tire Size</label>
-              <select
-                value={form.tireSize}
-                onChange={(e) => setForm({ ...form, tireSize: e.target.value })}
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-drift-orange transition-colors"
-              >
-                <option value="205">205 Max</option>
-                <option value="225">225 Max</option>
-                <option value="unlimited">Unlimited</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Skill Level</label>
-              <select
-                value={form.skillLevel}
-                onChange={(e) => setForm({ ...form, skillLevel: e.target.value })}
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-drift-orange transition-colors"
-              >
-                <option value="all">All Levels</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced / Pro</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Who Can Attend */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Who Can Attend?</label>
-            <div className="flex gap-2">
-              {([
-                { v: "drive" as const, l: "Drivers", active: "bg-drift-orange text-white" },
-                { v: "watch" as const, l: "Spectators", active: "bg-drift-cyan text-white" },
-                { v: "both" as const, l: "Both", active: "bg-purple-500 text-white" },
-              ]).map(({ v, l, active }) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setForm({ ...form, participation: v })}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    form.participation === v ? active : "bg-surface-lighter text-muted hover:text-foreground border border-border"
-                  }`}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Description</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Tell us about the event..."
-              rows={4}
-              className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors resize-none"
-            />
-          </div>
-
-          {/* Event URL */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Event URL / Social Link</label>
-            <input
-              type="url"
-              value={form.eventUrl}
-              onChange={(e) => setForm({ ...form, eventUrl: e.target.value })}
-              placeholder="https://..."
-              className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-            />
-          </div>
-
-          {/* Organizer & Contact */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Organizer Name *</label>
-              <input
-                type="text"
-                required
-                value={form.organizer}
-                onChange={(e) => setForm({ ...form, organizer: e.target.value })}
-                placeholder="Who organizes this event?"
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Contact Email *</label>
-              <input
-                type="email"
-                required
-                value={form.contactEmail}
-                onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
-                placeholder="your@email.com"
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Image Upload */}
-          <div>
-            <label className="block text-xs text-muted uppercase tracking-wider font-medium mb-2">Event Image</label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageSelect(file);
-              }}
-            />
-            {imagePreview ? (
-              <div className="relative rounded-xl overflow-hidden border border-border">
-                <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover" />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 hover:bg-black flex items-center justify-center transition-colors"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragging(false);
-                  const file = e.dataTransfer.files[0];
-                  if (file) handleImageSelect(file);
-                }}
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
-                  dragging ? "border-drift-orange bg-drift-orange/5" : "border-border hover:border-drift-orange/50"
-                }`}
-              >
-                <svg className="mx-auto mb-3 text-muted-dark" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                <p className="text-sm text-muted-dark">Click to upload or drag and drop</p>
-                <p className="text-xs text-muted-dark mt-1">PNG, JPG up to 5MB</p>
-              </div>
-            )}
-          </div>
-
-          {/* Note */}
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-drift-orange/5 border border-drift-orange/10">
-            <svg className="text-drift-orange flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
-            <p className="text-xs text-muted leading-relaxed">
-              All events are reviewed before publishing to ensure quality and legitimacy. We&apos;ll get back to you within 24 hours.
+            <h3 className="font-heading font-bold text-xl text-foreground mb-2">Hang tight, {profile.organizer_name || profile.username}</h3>
+            <p className="text-sm text-muted leading-relaxed max-w-md mx-auto">
+              We&apos;re reviewing your organizer request — usually done within 24 hours. You&apos;ll get a notification the moment you&apos;re approved, and this page will unlock.
             </p>
           </div>
+        ) : !canSubmit ? (
+          <div className="glass rounded-2xl p-6 md:p-8">
+            <h3 className="font-heading font-bold text-xl text-foreground mb-2">Become an Organizer</h3>
+            <p className="text-sm text-muted leading-relaxed mb-6">
+              Publishing events is reserved for verified organizers — that&apos;s how we keep fake and spam events off the map. Tell us about the events you run and we&apos;ll get you approved, usually within 24 hours.
+            </p>
+            <OrganizerRequestForm />
+          </div>
+        ) : (
+          <>
+            <div className="mb-6 flex items-start gap-3 p-4 rounded-xl bg-drift-orange/5 border border-drift-orange/10">
+              <svg className="text-drift-orange flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
+              <p className="text-xs text-muted leading-relaxed">
+                {isTrusted
+                  ? "You're a trusted organizer — your events publish instantly, no review needed. You can edit them and manage driver applications from My Events."
+                  : "All events are reviewed before publishing to ensure quality and legitimacy. We'll get back to you within 24 hours. Once approved, you can edit the event and manage driver applications from My Events."}
+              </p>
+            </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading || !user}
-            className="w-full py-4 bg-drift-orange hover:bg-drift-orange-light text-white font-heading font-semibold text-lg rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-drift-orange/20 active:scale-[0.98] disabled:opacity-50"
-          >
-            {loading ? "Submitting..." : "Submit for Review"}
-          </button>
-        </form>
+            <EventForm
+              key={formKey}
+              submitLabel="Submit for Review"
+              submitting={loading}
+              onSubmit={handleSubmit}
+            />
+          </>
+        )}
       </div>
     </section>
   );

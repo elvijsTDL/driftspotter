@@ -150,3 +150,35 @@ html { scroll-behavior: smooth; }
 /* Hide scrollbar for carousel */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Scroll reveal (used with the <Reveal> component) */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.reveal-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Ghost outlined numerals for step markers */
+.text-outline-orange {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 107, 0, 0.35);
+}
+.text-outline-cyan {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(0, 212, 255, 0.3);
+}
+
+/* Diagonal speed lines backdrop */
+.speed-lines {
+  background-image: repeating-linear-gradient(
+    -60deg,
+    rgba(255, 107, 0, 0.04) 0px,
+    rgba(255, 107, 0, 0.04) 1px,
+    transparent 1px,
+    transparent 18px
+  );
+}

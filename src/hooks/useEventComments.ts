@@ -44,6 +44,23 @@ export function useEventComments(eventId: string | null) {
 
     if (!raw) { setLoading(false); return; }
 
+    // The FK embed returns null for private profiles; backfill names via
+    // the SECURITY DEFINER lookup that always exposes username + avatar.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const missingAuthorIds = [...new Set((raw as any[])
+      .filter((c) => !c.author || (Array.isArray(c.author) && !c.author[0]))
+      .map((c) => c.author_id))];
+    const backfillMap = new Map<string, Profile>();
+    if (missingAuthorIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: publicProfiles } = await (supabase as any)
+        .rpc("get_public_profiles", { profile_ids: missingAuthorIds });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const p of (publicProfiles ?? []) as any[]) {
+        backfillMap.set(p.id, p as Profile);
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const enriched = await Promise.all(
       (raw as any[]).map(async (c: any) => {
@@ -63,7 +80,7 @@ export function useEventComments(eventId: string | null) {
           userLiked = !!like;
         }
 
-        const author = Array.isArray(c.author) ? c.author[0] : c.author;
+        const author = (Array.isArray(c.author) ? c.author[0] : c.author) ?? backfillMap.get(c.author_id) ?? null;
 
         return {
           id: c.id,

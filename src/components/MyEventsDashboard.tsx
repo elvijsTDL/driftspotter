@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMyEvents, useEventApplicants, type MyEvent, type EventApplicant } from "@/hooks/useMyEvents";
+import EditEventModal from "@/components/EditEventModal";
+import { EventDocumentsManager } from "@/components/EventDocuments";
 
 const statusBadge = (status: string) => {
   if (status === "pending") return { bg: "bg-yellow-500/10", text: "text-yellow-500", border: "border-yellow-500/20", label: "Pending" };
@@ -11,7 +15,9 @@ const statusBadge = (status: string) => {
 
 function ApplicantPanel({ eventId, maxParticipants }: { eventId: string; maxParticipants: number | null }) {
   const { applicants, loading, updateStatus } = useEventApplicants(eventId);
-  const approvedCount = applicants.filter((a) => a.status === "approved").length;
+  // Only drivers count against grid capacity; media passes are separate
+  const approvedCount = applicants.filter((a) => a.status === "approved" && a.role !== "media").length;
+  const approvedMediaCount = applicants.filter((a) => a.status === "approved" && a.role === "media").length;
 
   if (loading) {
     return (
@@ -35,12 +41,17 @@ function ApplicantPanel({ eventId, maxParticipants }: { eventId: string; maxPart
 
   return (
     <div className="mt-4 space-y-3">
-      {/* Capacity bar */}
+      {/* Capacity bar (drivers only — media doesn't take grid spots) */}
       {maxParticipants && (
         <div className="p-3 glass rounded-xl">
           <div className="flex items-center justify-between text-xs text-muted mb-2">
-            <span>Capacity</span>
-            <span className="font-semibold text-foreground">{approvedCount} / {maxParticipants}</span>
+            <span>Driver capacity</span>
+            <span className="font-semibold text-foreground">
+              {approvedCount} / {maxParticipants}
+              {approvedMediaCount > 0 && (
+                <span className="text-drift-cyan font-semibold ml-2">+ {approvedMediaCount} media</span>
+              )}
+            </span>
           </div>
           <div className="h-2 bg-surface-lighter rounded-full overflow-hidden">
             <div
@@ -73,14 +84,30 @@ function ApplicantCard({ applicant, onUpdate }: { applicant: EventApplicant; onU
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-foreground">{applicant.username}</span>
+            <Link
+              href={`/drivers/${applicant.user_id}`}
+              className="text-sm font-semibold text-foreground hover:text-drift-orange transition-colors"
+            >
+              {applicant.username}
+            </Link>
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${badge.bg} ${badge.text} border ${badge.border}`}>
               {badge.label}
             </span>
+            {applicant.role === "media" && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-drift-cyan/10 text-drift-cyan border border-drift-cyan/20 uppercase tracking-wider">
+                Media
+              </span>
+            )}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-drift-orange/10 text-drift-orange border border-drift-orange/20">
+              {applicant.events_attended} {applicant.events_attended === 1 ? "event" : "events"} attended
+            </span>
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted mb-1">
-            {applicant.car && (
-              <span>{applicant.car_year ? `${applicant.car_year} ` : ""}{applicant.car}</span>
+            {applicant.role !== "media" && applicant.car && (
+              <span>
+                {applicant.car_year ? `${applicant.car_year} ` : ""}{applicant.car}
+                {applicant.horsepower != null && <span className="text-drift-cyan font-semibold"> · {applicant.horsepower} hp</span>}
+              </span>
             )}
             {applicant.skill_level && (
               <span className="capitalize">{applicant.skill_level}</span>
@@ -92,6 +119,42 @@ function ApplicantCard({ applicant, onUpdate }: { applicant: EventApplicant; onU
           {applicant.message && (
             <p className="text-xs text-muted-dark italic mt-1">&ldquo;{applicant.message}&rdquo;</p>
           )}
+          {applicant.emergency_name && applicant.emergency_phone ? (
+            <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-drift-orange/5 border border-drift-orange/20 px-2.5 py-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-drift-orange">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+              </svg>
+              <p className="text-xs text-muted leading-snug">
+                <span className="text-drift-orange font-semibold uppercase tracking-wide text-[10px]">Emergency</span>{" "}
+                <span className="text-foreground">{applicant.emergency_name}</span>
+                {applicant.emergency_relationship && <span className="text-muted-dark"> ({applicant.emergency_relationship})</span>}
+                {" · "}
+                <a href={`tel:${applicant.emergency_phone}`} className="text-drift-cyan hover:underline">{applicant.emergency_phone}</a>
+              </p>
+            </div>
+          ) : applicant.role !== "media" && (
+            // Presence-only indicator (no PII) — full details unlock once approved
+            <div className="mt-2 inline-flex items-center gap-1.5">
+              {applicant.has_emergency_contact ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-badge-grassroots">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  Emergency contact on file
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-400/80">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                  No emergency contact
+                </span>
+              )}
+            </div>
+          )}
+          <Link
+            href={`/drivers/${applicant.user_id}`}
+            className="inline-flex items-center gap-1 text-xs text-drift-cyan hover:underline mt-1"
+          >
+            View driver profile
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+          </Link>
         </div>
         {applicant.status === "pending" && (
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -115,8 +178,10 @@ function ApplicantCard({ applicant, onUpdate }: { applicant: EventApplicant; onU
 }
 
 export default function MyEventsDashboard() {
-  const { events, loading } = useMyEvents();
+  const { user } = useAuth();
+  const { events, loading, updateEvent } = useMyEvents();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<MyEvent | null>(null);
 
   if (loading) {
     return (
@@ -140,6 +205,12 @@ export default function MyEventsDashboard() {
           <h1 className="font-heading font-bold text-3xl md:text-4xl text-foreground tracking-tight">MY EVENTS</h1>
           <div className="tire-track w-20 mt-3" />
           <p className="text-muted mt-3">Manage your submitted events and applicants.</p>
+          {user && events.length > 0 && (
+            <Link href={`/organizers/${user.id}`} className="inline-flex items-center gap-1.5 mt-2 text-sm text-drift-cyan hover:underline">
+              View your public organizer page
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+            </Link>
+          )}
         </div>
 
         {events.length === 0 ? (
@@ -187,18 +258,41 @@ export default function MyEventsDashboard() {
                           </span>
                         </div>
                       </div>
-                      <svg
-                        width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                        className={`text-muted transition-transform flex-shrink-0 ml-4 ${isExpanded ? "rotate-180" : ""}`}
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingEvent(event); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-surface-lighter text-muted hover:text-drift-orange border border-border hover:border-drift-orange/40 transition-colors"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                          Edit
+                        </button>
+                        {event.status === "approved" && (
+                          <Link
+                            href={`/events/${event.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-surface-lighter text-muted hover:text-drift-cyan border border-border hover:border-drift-cyan/40 transition-colors"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                            View Live
+                          </Link>
+                        )}
+                        <svg
+                          width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                          className={`text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
 
                   {isExpanded && event.status === "approved" && (
                     <div className="px-5 pb-5 border-t border-border">
-                      <h4 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wider mt-4 mb-2">Applicants</h4>
+                      <h4 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wider mt-4 mb-2">Documents</h4>
+                      <EventDocumentsManager eventId={event.id} />
+                      <h4 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wider mt-6 mb-2">Applicants</h4>
                       <ApplicantPanel eventId={event.id} maxParticipants={event.max_participants} />
                     </div>
                   )}
@@ -218,6 +312,14 @@ export default function MyEventsDashboard() {
           </div>
         )}
       </div>
+
+      {editingEvent && (
+        <EditEventModal
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onSave={updateEvent}
+        />
+      )}
     </section>
   );
 }

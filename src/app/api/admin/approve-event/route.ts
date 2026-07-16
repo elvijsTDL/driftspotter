@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmailSafe } from "@/lib/email/resend";
+import { EventStatusEmail } from "@/lib/email/templates/event-status";
 
 export async function POST(request: Request) {
   const { eventId } = await request.json();
@@ -54,8 +56,13 @@ export async function POST(request: Request) {
       tire_size: ev.tire_size,
       skill_level: ev.skill_level,
       description: ev.description,
+      safety_requirements: ev.safety_requirements ?? "",
+      required_equipment: ev.required_equipment ?? [],
+      accepts_media: ev.accepts_media ?? false,
+      requires_emergency_contact: ev.requires_emergency_contact ?? false,
       event_url: ev.event_url,
       image_url: ev.image_url,
+      media_urls: ev.media_urls ?? [],
       price: ev.price,
       participation: ev.participation,
       organizer: ev.organizer,
@@ -76,6 +83,22 @@ export async function POST(request: Request) {
     .from("submitted_events")
     .update({ status: "approved" })
     .eq("id", eventId);
+
+  // The confirmation email the submit screen promises
+  if (ev.contact_email) {
+    await sendEmailSafe({
+      to: ev.contact_email,
+      subject: `Your event "${ev.name}" is live on DriftSpotter!`,
+      react: EventStatusEmail({
+        organizerName: ev.organizer || "there",
+        eventName: ev.name,
+        eventDate: new Date(ev.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+        approved: true,
+        imageUrl: ev.image_url || ev.media_urls?.[0] || undefined,
+        eventUrl: `https://driftspotter.com/events/${ev.id}`,
+      }),
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

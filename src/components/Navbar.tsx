@@ -13,6 +13,7 @@ const baseNavLinks = [
   { label: "Home", href: "/" },
   { label: "Events", href: "/events" },
   { label: "Map", href: "/map" },
+  { label: "How It Works", href: "/how-it-works" },
   { label: "Submit Event", href: "/submit" },
 ];
 
@@ -41,7 +42,7 @@ export default function Navbar({
   }, []);
 
   const navLinks = user
-    ? [...baseNavLinks.slice(0, 3), { label: "My Events", href: "/my-events" }, baseNavLinks[3]]
+    ? [...baseNavLinks.slice(0, 4), { label: "My Events", href: "/my-events" }, baseNavLinks[4]]
     : baseNavLinks;
 
   const displayName = profile?.username || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
@@ -119,6 +120,38 @@ export default function Navbar({
                         <p className="text-xs text-muted truncate">{user.email}</p>
                       </div>
                       <div className="py-1">
+                        <Link
+                          href="/profile"
+                          onClick={() => setDropdownOpen(false)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-lighter transition-colors flex items-center gap-2"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
+                          </svg>
+                          Driver Profile
+                        </Link>
+                        <Link
+                          href="/my-applications"
+                          onClick={() => setDropdownOpen(false)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-lighter transition-colors flex items-center gap-2"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+                          </svg>
+                          My Applications
+                        </Link>
+                        {user && (
+                          <Link
+                            href={`/drivers/${user.id}`}
+                            onClick={() => setDropdownOpen(false)}
+                            className="w-full text-left px-4 py-2.5 text-sm text-muted hover:bg-surface-lighter hover:text-foreground transition-colors flex items-center gap-2"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" />
+                            </svg>
+                            Public Profile
+                          </Link>
+                        )}
                         {profile?.is_admin && (
                           <a
                             href="/admin"
@@ -197,6 +230,20 @@ export default function Navbar({
                 )}
                 <span className="text-sm font-medium text-foreground">{displayName}</span>
               </div>
+              <Link
+                href="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-muted hover:text-foreground hover:bg-surface-lighter rounded-lg transition-colors"
+              >
+                Driver Profile
+              </Link>
+              <Link
+                href="/my-applications"
+                onClick={() => setMobileOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-muted hover:text-foreground hover:bg-surface-lighter rounded-lg transition-colors"
+              >
+                My Applications
+              </Link>
               {profile?.is_admin && (
                 <a
                   href="/admin"
