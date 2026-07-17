@@ -1,10 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** Photo gallery with lightbox for event media beyond the cover image. */
 export function EventGallery({ urls, eventName }: { urls: string[]; eventName: string }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    closeButtonRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightboxIndex(null);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [lightboxIndex]);
 
   if (urls.length === 0) return null;
 
@@ -27,25 +38,30 @@ export function EventGallery({ urls, eventName }: { urls: string[]; eventName: s
         <div
           className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setLightboxIndex(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${eventName} photo viewer`}
         >
           <img src={urls[lightboxIndex]} alt={eventName} className="max-w-full max-h-full rounded-xl object-contain" />
           {urls.length > 1 && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + urls.length) % urls.length); }}
+                aria-label="Previous photo"
                 className="absolute left-4 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center transition-colors"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % urls.length); }}
+                aria-label="Next photo"
                 className="absolute right-4 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center transition-colors"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
               </button>
             </>
           )}
-          <button className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+          <button ref={closeButtonRef} onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }} aria-label="Close photo viewer" className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>

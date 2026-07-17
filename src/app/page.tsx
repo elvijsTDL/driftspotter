@@ -13,8 +13,17 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <EventCarousel onSelectEvent={setSelectedEvent} />
-      <VideoHighlights />
+
+      {/* How-It-Works-style backdrop: diagonal speed lines + soft glow orbs
+          behind everything below the hero (the hero paints its own bg) */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 speed-lines pointer-events-none" />
+        <div className="absolute -top-24 right-0 w-[500px] h-[500px] bg-drift-orange/10 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute bottom-0 -left-40 w-[450px] h-[450px] bg-drift-cyan/5 rounded-full blur-[140px] pointer-events-none" />
+
+        <EventCarousel onSelectEvent={setSelectedEvent} />
+        <VideoHighlights />
+      </div>
 
       {selectedEvent && (
         <EventDetailModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />

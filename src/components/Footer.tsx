@@ -96,18 +96,6 @@ export default function Footer() {
           ))}
         </div>
 
-        {/* Sponsors placeholder */}
-        <div className="mt-12 pt-8 border-t border-border">
-          <p className="text-xs text-muted-dark uppercase tracking-wider text-center mb-4">Partners & Sponsors</p>
-          <div className="flex items-center justify-center gap-8 flex-wrap">
-            {["Sponsor 1", "Sponsor 2", "Sponsor 3", "Sponsor 4"].map((s) => (
-              <div key={s} className="w-24 h-10 rounded-lg bg-surface-lighter/50 flex items-center justify-center text-[10px] text-muted-dark">
-                {s}
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Copyright */}
         <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-muted-dark">&copy; 2026 DriftSpotter. All rights reserved.</p>

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
-import { getResend, FROM_EMAIL } from "@/lib/email/resend";
+import { sendEmailSafe } from "@/lib/email/resend";
 import { EventReminderEmail } from "@/lib/email/templates/event-reminder";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireCronSecret } from "@/lib/apiSecurity";
 
 const SITE_URL = "https://driftspotter.com";
 const REMINDER_DAYS_AHEAD = 2;
@@ -14,11 +15,8 @@ const REMINDER_DAYS_AHEAD = 2;
  * notification.
  */
 export async function GET(request: Request) {
-  // Vercel cron sends this header when CRON_SECRET is configured
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const unauthorized = requireCronSecret(request);
+  if (unauthorized) return unauthorized;
 
   try {
     const supabase = createAdminClient();
@@ -94,8 +92,7 @@ export async function GET(request: Request) {
         const eventUrl = `${SITE_URL}/events/${event.id}`;
 
         if (user?.email) {
-          await getResend().emails.send({
-            from: FROM_EMAIL,
+          await sendEmailSafe({
             to: user.email,
             subject: `Reminder: ${event.name} is on ${eventDate}`,
             react: EventReminderEmail({

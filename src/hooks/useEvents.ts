@@ -28,18 +28,21 @@ async function fetchEvents(): Promise<DriftEvent[]> {
     return [];
   }
 
-  // Batch-fetch approved RSVP counts only
+  // Batch-fetch approved RSVP counts only. Count driver applications by
+  // event_id (text) — the column applyToAttend actually writes. event_uuid is
+  // never populated, so counting by it always returned 0 (approved events share
+  // the submitted_events UUID, so events.id === event_rsvps.event_id).
   const eventIds = data.map((e: { id: string }) => e.id);
   const { data: rsvpCounts } = await supabase
     .from("event_rsvps")
-    .select("event_uuid")
-    .in("event_uuid", eventIds)
+    .select("event_id")
+    .in("event_id", eventIds)
     .eq("status", "approved");
 
   const countMap = new Map<string, number>();
   if (rsvpCounts) {
-    for (const r of rsvpCounts as { event_uuid: string }[]) {
-      countMap.set(r.event_uuid, (countMap.get(r.event_uuid) || 0) + 1);
+    for (const r of rsvpCounts as { event_id: string }[]) {
+      countMap.set(r.event_id, (countMap.get(r.event_id) || 0) + 1);
     }
   }
 

@@ -145,8 +145,9 @@ export default function EventForm({
     <form onSubmit={handleSubmit} className="glass rounded-2xl p-6 md:p-8 space-y-5">
       {/* Event Name */}
       <div>
-        <label className={labelClass}>Event Name *</label>
+        <label htmlFor="event-name" className={labelClass}>Event Name *</label>
         <input
+          id="event-name"
           type="text"
           required
           value={form.name}
@@ -161,6 +162,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Start Date *</label>
           <DatePicker
+            ariaLabel="Start date"
             value={form.date}
             onChange={(val) => setForm({ ...form, date: val })}
             placeholder="Pick start date"
@@ -169,6 +171,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>End Date</label>
           <DatePicker
+            ariaLabel="End date"
             value={form.endDate}
             onChange={(val) => setForm({ ...form, endDate: val })}
             placeholder="Pick end date (optional)"
@@ -178,8 +181,9 @@ export default function EventForm({
 
       {/* Location text */}
       <div>
-        <label className={labelClass}>Location *</label>
+        <label htmlFor="event-location" className={labelClass}>Location *</label>
         <input
+          id="event-location"
           type="text"
           required
           value={form.location}
@@ -203,8 +207,9 @@ export default function EventForm({
       {/* Track / Venue & Country */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label className={labelClass}>Track / Venue Name *</label>
+          <label htmlFor="event-track" className={labelClass}>Track / Venue Name *</label>
           <input
+            id="event-track"
             type="text"
             required
             value={form.track}
@@ -216,6 +221,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Country {form.country && <span className="text-drift-orange normal-case">(auto-detected)</span>}</label>
           <select
+            aria-label="Country"
             value={form.country}
             onChange={(e) => setForm({ ...form, country: e.target.value })}
             className={inputClass}
@@ -233,6 +239,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Series Name</label>
           <input
+            aria-label="Series name"
             type="text"
             value={form.series}
             onChange={(e) => setForm({ ...form, series: e.target.value })}
@@ -243,6 +250,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Price</label>
           <input
+            aria-label="Price"
             type="text"
             value={form.price}
             onChange={(e) => setForm({ ...form, price: e.target.value })}
@@ -256,6 +264,7 @@ export default function EventForm({
       <div>
         <label className={labelClass}>Max Participants</label>
         <input
+          aria-label="Maximum participants"
           type="number"
           min="1"
           value={form.maxParticipants}
@@ -269,6 +278,7 @@ export default function EventForm({
       <div>
         <label className={labelClass}>Category</label>
         <select
+          aria-label="Event category"
           value={form.category}
           onChange={(e) => setForm({ ...form, category: e.target.value })}
           className={inputClass}
@@ -301,6 +311,7 @@ export default function EventForm({
                   // keep the legacy boolean in sync for map filters
                   cageRequired: key === "roll_cage" ? !active : f.cageRequired,
                 }))}
+                aria-pressed={active}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                   active
                     ? "bg-drift-orange text-white border-drift-orange"
@@ -322,6 +333,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Max Tire Size</label>
           <select
+            aria-label="Maximum tire size"
             value={form.tireSize}
             onChange={(e) => setForm({ ...form, tireSize: e.target.value })}
             className={inputClass}
@@ -334,6 +346,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Skill Level</label>
           <select
+            aria-label="Skill level"
             value={form.skillLevel}
             onChange={(e) => setForm({ ...form, skillLevel: e.target.value })}
             className={inputClass}
@@ -359,6 +372,7 @@ export default function EventForm({
               key={v}
               type="button"
               onClick={() => setForm({ ...form, participation: v })}
+              aria-pressed={form.participation === v}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 form.participation === v ? active : "bg-surface-lighter text-muted hover:text-foreground border border-border"
               }`}
@@ -376,6 +390,9 @@ export default function EventForm({
           <button
             type="button"
             onClick={() => setForm({ ...form, acceptsMedia: !form.acceptsMedia })}
+            role="switch"
+            aria-checked={form.acceptsMedia}
+            aria-label="Accept media applications"
             className={`relative w-12 h-7 rounded-full transition-colors ${form.acceptsMedia ? "bg-drift-cyan" : "bg-surface-lighter border border-border"}`}
           >
             <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${form.acceptsMedia ? "left-6" : "left-1"}`} />
@@ -393,6 +410,9 @@ export default function EventForm({
           <button
             type="button"
             onClick={() => setForm({ ...form, requiresEmergencyContact: !form.requiresEmergencyContact })}
+            role="switch"
+            aria-checked={form.requiresEmergencyContact}
+            aria-label="Require emergency contact"
             className={`relative w-12 h-7 rounded-full transition-colors ${form.requiresEmergencyContact ? "bg-drift-orange" : "bg-surface-lighter border border-border"}`}
           >
             <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${form.requiresEmergencyContact ? "left-6" : "left-1"}`} />
@@ -407,6 +427,7 @@ export default function EventForm({
       <div>
         <label className={labelClass}>Description</label>
         <textarea
+          aria-label="Event description"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           placeholder="Tell us about the event..."
@@ -419,6 +440,7 @@ export default function EventForm({
       <div>
         <label className={labelClass}>Safety Requirements</label>
         <textarea
+          aria-label="Safety requirements"
           value={form.safetyRequirements}
           onChange={(e) => setForm({ ...form, safetyRequirements: e.target.value })}
           placeholder="Anything beyond car equipment — e.g. helmet mandatory, long sleeves, sound limit 98dB, no passengers under 18..."
@@ -432,6 +454,7 @@ export default function EventForm({
       <div>
         <label className={labelClass}>Event URL / Social Link</label>
         <input
+          aria-label="Event URL or social link"
           type="url"
           value={form.eventUrl}
           onChange={(e) => setForm({ ...form, eventUrl: e.target.value })}
@@ -445,6 +468,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Organizer Name *</label>
           <input
+            aria-label="Organizer name"
             type="text"
             required
             value={form.organizer}
@@ -456,6 +480,7 @@ export default function EventForm({
         <div>
           <label className={labelClass}>Contact Email *</label>
           <input
+            aria-label="Contact email"
             type="email"
             required
             value={form.contactEmail}
@@ -472,6 +497,7 @@ export default function EventForm({
           Event Photos <span className="normal-case text-muted-dark">({totalImages}/{MAX_EVENT_IMAGES} — first image is the cover)</span>
         </label>
         <input
+          aria-label="Event photos"
           ref={fileInputRef}
           type="file"
           accept="image/*"

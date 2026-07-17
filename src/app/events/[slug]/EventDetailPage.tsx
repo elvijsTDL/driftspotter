@@ -14,6 +14,7 @@ import ProfileCompletenessHint from "@/components/ProfileCompletenessHint";
 import ApplyCarPicker from "@/components/ApplyCarPicker";
 import ApplicationDetails from "@/components/ApplicationDetails";
 import { EventDocumentsList } from "@/components/EventDocuments";
+import EventUpdatesFeed from "@/components/EventUpdatesFeed";
 import { equipmentLabel } from "@/lib/equipment";
 import type { ApplicationRole } from "@/hooks/useEventRsvp";
 import { useState } from "react";
@@ -206,6 +207,12 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
               )}
             </div>
 
+            {/* Pinned organizer updates — visible to everyone */}
+            <EventUpdatesFeed eventId={event.id} />
+
+            {/* Participant hub (docs + links) — approved users get it up top */}
+            {userStatus === "approved" && <EventDocumentsList eventId={event.id} />}
+
             {/* Description */}
             <p className="text-sm text-muted leading-relaxed mb-6">{event.description}</p>
 
@@ -214,9 +221,6 @@ export default function EventDetailPage({ event }: { event: DriftEvent }) {
 
             {/* Safety requirements */}
             <SafetyRequirements text={event.safetyRequirements} />
-
-            {/* Participant documents (visible once approved) */}
-            {userStatus === "approved" && <EventDocumentsList eventId={event.id} />}
 
             {/* RSVP / Apply */}
             <div className="mb-6">

@@ -92,7 +92,7 @@ export default function DriverProfileView({ userId }: { userId: string }) {
 
   if (notFound || !profile) {
     return (
-      <div className="glass rounded-2xl p-12 text-center">
+      <div className="glass rounded-2xl p-6 sm:p-12 text-center">
         <svg className="mx-auto mb-4 text-muted-dark" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>

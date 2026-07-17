@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PartnerMarquee from "@/components/PartnerMarquee";
 import LoginModal from "@/components/LoginModal";
 import PushPermissionBanner from "@/components/PushPermissionBanner";
 
@@ -23,16 +24,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, [loading, user, profile, pathname, router]);
 
   return (
-    <main className="min-h-screen bg-background noise-overlay">
+    <div className="min-h-screen bg-background noise-overlay">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <Navbar
         user={user}
         profile={profile}
         onLoginClick={() => setShowLogin(true)}
       />
-      {children}
+      <main id="main-content" tabIndex={-1}>{children}</main>
+      <PartnerMarquee />
       <Footer />
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       <PushPermissionBanner />
-    </main>
+    </div>
   );
 }

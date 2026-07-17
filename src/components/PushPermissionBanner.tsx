@@ -31,7 +31,7 @@ export default function PushPermissionBanner() {
   };
 
   return (
-    <div className="fixed bottom-6 left-6 right-6 sm:left-auto sm:right-6 sm:w-96 z-[90] glass rounded-2xl border border-border p-5 animate-fade-in-up shadow-xl">
+    <div className="fixed bottom-2 left-2 right-2 sm:bottom-6 sm:left-auto sm:right-6 sm:w-96 z-[90] glass rounded-2xl border border-border p-4 sm:p-5 animate-fade-in-up shadow-xl">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-drift-orange/20 flex items-center justify-center flex-shrink-0">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" strokeWidth="2" strokeLinecap="round">

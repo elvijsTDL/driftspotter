@@ -105,6 +105,9 @@ export default function NotificationBell() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
+        aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
+        aria-expanded={open}
+        aria-haspopup="menu"
         className="relative p-2 rounded-lg hover:bg-surface-lighter transition-colors"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -119,7 +122,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 glass rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
+        <div role="menu" aria-label="Notifications" className="absolute right-0 top-full mt-2 w-80 glass rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <h3 className="font-heading font-semibold text-sm text-foreground">Notifications</h3>
             {unreadCount > 0 && (
@@ -137,6 +140,7 @@ export default function NotificationBell() {
             ) : (
               notifications.map((n) => (
                 <button
+                  role="menuitem"
                   key={n.id}
                   onClick={() => {
                     if (!n.read) markAsRead(n.id);

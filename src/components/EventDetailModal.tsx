@@ -14,8 +14,10 @@ import ProfileCompletenessHint from "@/components/ProfileCompletenessHint";
 import ApplyCarPicker from "@/components/ApplyCarPicker";
 import ApplicationDetails from "@/components/ApplicationDetails";
 import { EventDocumentsList } from "@/components/EventDocuments";
+import EventUpdatesFeed from "@/components/EventUpdatesFeed";
 import { equipmentLabel } from "@/lib/equipment";
 import type { ApplicationRole } from "@/hooks/useEventRsvp";
+import { useDialogAccessibility } from "@/hooks/useDialogAccessibility";
 
 const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
   official: { bg: "bg-badge-official/20", text: "text-badge-official", label: "Official" },
@@ -48,6 +50,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function EventDetailModal({ event, onClose }: { event: DriftEvent; onClose: () => void }) {
+  const dialogRef = useDialogAccessibility(onClose);
   const { user } = useAuth();
   const { toast } = useToast();
   const { comments, loading: commentsLoading, refetch: refetchComments } = useEventComments(event.id);
@@ -121,12 +124,18 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-2xl mx-4 my-8 md:my-16 rounded-2xl glass overflow-hidden animate-fade-in-up"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-detail-title"
+        tabIndex={-1}
+        className="relative w-[calc(100%-1rem)] max-w-2xl mx-2 my-2 sm:mx-4 sm:my-8 md:my-16 rounded-2xl glass overflow-hidden animate-fade-in-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
           onClick={onClose}
+          aria-label="Close event details"
           className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-colors"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
@@ -154,7 +163,7 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
           {event.series && (
             <p className="text-xs text-drift-orange font-medium uppercase tracking-wider mb-1">{event.series}</p>
           )}
-          <h2 className="font-heading font-bold text-2xl text-foreground leading-tight mb-2">
+          <h2 id="event-detail-title" className="font-heading font-bold text-2xl text-foreground leading-tight mb-2">
             {event.name}
           </h2>
 
@@ -215,6 +224,12 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
             )}
           </div>
 
+          {/* Pinned organizer updates — visible to everyone */}
+          <EventUpdatesFeed eventId={event.id} />
+
+          {/* Participant hub (docs + links) — approved users get it up top */}
+          {userStatus === "approved" && <EventDocumentsList eventId={event.id} />}
+
           {/* Description */}
           <p className="text-sm text-muted leading-relaxed mb-6">{event.description}</p>
 
@@ -223,9 +238,6 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
 
           {/* Safety requirements */}
           <SafetyRequirements text={event.safetyRequirements} />
-
-          {/* Participant documents (visible once approved) */}
-          {userStatus === "approved" && <EventDocumentsList eventId={event.id} />}
 
           {/* RSVP / Apply */}
           <div className="mb-6">

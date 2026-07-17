@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDialogAccessibility } from "@/hooks/useDialogAccessibility";
 
 export default function LoginModal({ onClose }: { onClose: () => void }) {
   const { signInWithOAuth, signInWithEmail, signUpWithEmail } = useAuth();
@@ -13,6 +14,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
+  const dialogRef = useDialogAccessibility(onClose);
 
   const handleOAuth = async (provider: "google") => {
     setError(null);
@@ -59,12 +61,12 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
-        <div className="relative w-full max-w-md mx-4 rounded-2xl glass overflow-hidden animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="email-confirm-title" tabIndex={-1} className="relative w-[calc(100%-1rem)] max-w-md mx-2 sm:mx-4 rounded-2xl glass overflow-hidden animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
           <div className="p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-badge-grassroots/20 flex items-center justify-center mx-auto mb-5">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
             </div>
-            <h2 className="font-heading font-bold text-2xl text-foreground mb-3">Check Your Email</h2>
+            <h2 id="email-confirm-title" className="font-heading font-bold text-2xl text-foreground mb-3">Check Your Email</h2>
             <p className="text-sm text-muted mb-6">
               We&apos;ve sent a confirmation link to <strong className="text-foreground">{email}</strong>. Click the link to activate your account.
             </p>
@@ -82,12 +84,18 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
 
       <div
-        className="relative w-full max-w-md mx-4 rounded-2xl glass overflow-hidden animate-fade-in-up"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="login-dialog-title"
+        tabIndex={-1}
+        className="relative w-[calc(100%-1rem)] max-w-md mx-2 sm:mx-4 max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-2xl glass animate-fade-in-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
         <button
           onClick={onClose}
+          aria-label="Close sign-in dialog"
           className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-surface-lighter flex items-center justify-center hover:bg-surface-light transition-colors"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -95,7 +103,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           </svg>
         </button>
 
-        <div className="p-8">
+        <div className="p-5 sm:p-8">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-4">
@@ -105,7 +113,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
               </svg>
               <span className="font-heading font-bold text-lg">DRIFT<span className="text-drift-orange">SPOTTER</span></span>
             </div>
-            <h2 className="font-heading font-bold text-2xl text-foreground">
+            <h2 id="login-dialog-title" className="font-heading font-bold text-2xl text-foreground">
               {mode === "login" ? "Welcome Back" : "Join the Community"}
             </h2>
             <p className="text-sm text-muted mt-2">
@@ -115,7 +123,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
 
           {/* Error */}
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+            <div role="alert" className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
               {error}
             </div>
           )}
@@ -148,15 +156,13 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           {/* Email form */}
           <form onSubmit={handleSubmit} className="space-y-3 mb-6">
             {mode === "register" && (
-              <input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
-              />
+              <div>
+                <label htmlFor="auth-username" className="sr-only">Username</label>
+                <input id="auth-username" name="username" autoComplete="username" type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors" />
+              </div>
             )}
-            <input
+            <label htmlFor="auth-email" className="sr-only">Email address</label>
+            <input id="auth-email" name="email" autoComplete="email"
               type="email"
               placeholder="Email address"
               value={email}
@@ -164,7 +170,8 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
               required
               className="w-full px-4 py-3 bg-surface-lighter border border-border rounded-xl text-sm text-foreground placeholder:text-muted-dark focus:outline-none focus:border-drift-orange transition-colors"
             />
-            <input
+            <label htmlFor="auth-password" className="sr-only">Password</label>
+            <input id="auth-password" name="password" autoComplete={mode === "login" ? "current-password" : "new-password"}
               type="password"
               placeholder="Password"
               value={password}
@@ -177,12 +184,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             {/* Terms */}
             {mode === "register" && (
               <label className="flex items-start gap-3 cursor-pointer">
-                <div
-                  onClick={() => setAgreed(!agreed)}
-                  className={`w-4 h-4 rounded border-2 mt-0.5 flex-shrink-0 transition-colors flex items-center justify-center ${agreed ? "border-drift-orange bg-drift-orange" : "border-border-light"}`}
-                >
-                  {agreed && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>}
-                </div>
+                <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-5 w-5 accent-drift-orange flex-shrink-0" />
                 <span className="text-xs text-muted leading-relaxed">
                   I agree to the <a href="#" className="text-drift-orange hover:underline">Terms of Service</a> and <a href="#" className="text-drift-orange hover:underline">Privacy Policy</a>
                 </span>

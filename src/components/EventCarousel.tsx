@@ -65,7 +65,7 @@ export default function EventCarousel({ onSelectEvent }: { onSelectEvent: (e: Dr
         {/* Carousel */}
         <div
           ref={scrollRef}
-          className="flex gap-5 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4"
+          className="flex gap-5 overflow-x-auto no-scrollbar pt-4 -mt-4 pb-4 -mx-4 px-4"
         >
           {hotEvents.map((event) => (
             <EventCard

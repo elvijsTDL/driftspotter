@@ -115,7 +115,7 @@ export default function AdminDashboard() {
             ))}
           </div>
         ) : events.length === 0 ? (
-          <div className="glass rounded-2xl p-12 text-center">
+          <div className="glass rounded-2xl p-6 sm:p-12 text-center">
             <p className="text-muted">No events found{filter !== "all" ? ` with status "${filter}"` : ""}.</p>
           </div>
         ) : (
@@ -185,7 +185,7 @@ function OrganizersPanel() {
 
   if (organizers.length === 0) {
     return (
-      <div className="glass rounded-2xl p-12 text-center">
+      <div className="glass rounded-2xl p-6 sm:p-12 text-center">
         <p className="text-muted">No organizer requests yet.</p>
       </div>
     );

@@ -70,14 +70,22 @@ export function useMyApplications() {
     );
 
     setApplications(
-      rsvps.map((r) => ({
-        rsvp_id: r.id,
-        event_id: r.event_id,
-        status: r.status as "pending" | "approved" | "rejected",
-        message: r.message ?? null,
-        applied_at: r.created_at,
-        event: eventMap.get(r.event_id) ?? null,
-      }))
+      rsvps
+        .map((r) => ({
+          rsvp_id: r.id,
+          event_id: r.event_id,
+          status: r.status as "pending" | "approved" | "rejected",
+          message: r.message ?? null,
+          applied_at: r.created_at,
+          event: eventMap.get(r.event_id) ?? null,
+        }))
+        // Soonest event first — what's coming up matters more than when you
+        // applied; applications with no event data sink to the bottom
+        .sort((a, b) => {
+          if (!a.event) return 1;
+          if (!b.event) return -1;
+          return a.event.date < b.event.date ? -1 : a.event.date > b.event.date ? 1 : 0;
+        })
     );
     setLoading(false);
   }, [supabase, user]);

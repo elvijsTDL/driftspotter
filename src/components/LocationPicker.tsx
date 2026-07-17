@@ -120,8 +120,21 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
     <div>
       <div
         ref={containerRef}
+        role="application"
+        aria-label="Event location map. You can also enter coordinates below."
         className="w-full h-[250px] rounded-xl overflow-hidden border border-border"
       />
+      <fieldset className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <legend className="sr-only">Event coordinates</legend>
+        <div>
+          <label htmlFor="event-latitude" className="block text-xs text-muted mb-1">Latitude</label>
+          <input id="event-latitude" type="number" inputMode="decimal" min="-90" max="90" step="any" value={lat ?? ""} onChange={(e) => { const next = Number(e.target.value); if (e.target.value !== "" && Number.isFinite(next)) onChange(next, lng ?? 0); }} className="w-full px-3 py-2.5 bg-surface-lighter border border-border rounded-xl text-foreground" />
+        </div>
+        <div>
+          <label htmlFor="event-longitude" className="block text-xs text-muted mb-1">Longitude</label>
+          <input id="event-longitude" type="number" inputMode="decimal" min="-180" max="180" step="any" value={lng ?? ""} onChange={(e) => { const next = Number(e.target.value); if (e.target.value !== "" && Number.isFinite(next)) onChange(lat ?? 0, next); }} className="w-full px-3 py-2.5 bg-surface-lighter border border-border rounded-xl text-foreground" />
+        </div>
+      </fieldset>
       {lat !== null && lng !== null && (
         <p className="text-xs text-muted mt-2">
           Coordinates: {lat}, {lng}

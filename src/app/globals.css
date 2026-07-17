@@ -18,7 +18,7 @@
   --color-badge-proam: #3B82F6;
   --color-badge-practice: #6B7280;
   --color-muted: #888888;
-  --color-muted-dark: #555555;
+  --color-muted-dark: #8a8a8a;
 
   --font-heading: "Chakra Petch", sans-serif;
   --font-body: "Outfit", sans-serif;
@@ -109,6 +109,54 @@
 .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
 .animate-slide-in-right { animation: slide-in-right 0.5s ease-out forwards; }
 
+/* Partner marquee — sponsor logos come on white backgrounds, so they are
+   grayscaled + inverted and screen-blended to read as ghosted gray marks
+   drifting across the dark footer. Hover a logo to bring it forward. */
+.partner-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+}
+.partner-marquee-track {
+  display: flex;
+  width: max-content;
+  /* headroom inside the overflow-hidden marquee so the hover scale-up
+     isn't clipped top/bottom */
+  padding: 1rem 0;
+  animation: partner-drift 50s linear infinite;
+}
+.partner-marquee:hover .partner-marquee-track { animation-play-state: paused; }
+@keyframes partner-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+/* Logos are transparent-background PNGs (see scripts/strip-logo-bg.mjs),
+   ghosted gray at rest; hovering releases the filter so the brand colors
+   pop straight on the dark background. */
+.partner-logo {
+  height: 6rem;
+  width: auto;
+  filter: grayscale(1) invert(1) brightness(0.9);
+  opacity: 0.5;
+  transition: filter 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+}
+/* Logos that ship as white-on-transparent for dark backgrounds must not be
+   inverted (white would turn black and vanish) — just desaturate them. */
+.partner-logo--light {
+  filter: grayscale(1) brightness(0.85);
+}
+.partner-logo:hover {
+  filter: none;
+  opacity: 1;
+  transform: scale(1.08);
+}
+/* Logos with near-black artwork (made for light backgrounds) would vanish
+   on a bare hover — invert lightness but restore hue, so dark text reads
+   white while brand colors (e.g. Kenda red) survive. */
+.partner-logo--dark:hover {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 /* Stagger delays */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
@@ -123,7 +171,40 @@
 ::-webkit-scrollbar-thumb:hover { background: #FF6B00; }
 
 /* Smooth scroll */
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: clip; }
+body { min-width: 320px; overflow-x: clip; }
+
+:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid #00D4FF !important;
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 1000;
+  transform: translateY(-200%);
+  border-radius: 0.5rem;
+  background: #f5f5f5;
+  color: #0a0a0a;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+}
+.skip-link:focus { transform: translateY(0); }
+
+.bg-drift-orange.text-white,
+.bg-drift-orange-light.text-white { color: #0a0a0a; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* Tire track decorative line */
 .tire-track {

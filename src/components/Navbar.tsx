@@ -92,6 +92,9 @@ export default function Navbar({
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
+                    aria-label={`Open account menu for ${displayName}`}
+                    aria-expanded={dropdownOpen}
+                    aria-haspopup="menu"
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-surface-lighter transition-colors"
                   >
                     {avatarUrl ? (
@@ -114,7 +117,7 @@ export default function Navbar({
                   </button>
 
                   {dropdownOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-56 glass rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
+                    <div role="menu" aria-label="Account" className="absolute right-0 top-full mt-2 w-56 glass rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
                       <div className="px-4 py-3 border-b border-border">
                         <p className="text-sm font-semibold text-foreground">{displayName}</p>
                         <p className="text-xs text-muted truncate">{user.email}</p>
@@ -193,6 +196,8 @@ export default function Navbar({
             onClick={() => setMobileOpen(!mobileOpen)}
             className="md:hidden flex flex-col gap-1.5 p-2"
             aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-navigation"
           >
             <span className={`block w-6 h-0.5 bg-foreground transition-all duration-300 ${mobileOpen ? "rotate-45 translate-y-2" : ""}`} />
             <span className={`block w-6 h-0.5 bg-foreground transition-all duration-300 ${mobileOpen ? "opacity-0" : ""}`} />
@@ -203,6 +208,7 @@ export default function Navbar({
 
       {/* Mobile Menu */}
       <div
+        id="mobile-navigation"
         className={`md:hidden glass transition-all duration-300 overflow-hidden ${
           mobileOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}

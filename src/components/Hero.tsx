@@ -60,7 +60,7 @@ export default function Hero() {
   const stats = useHeroStats();
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-dvh flex items-center justify-center overflow-hidden">
       {/* Animated background layers */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-surface to-background" />
 

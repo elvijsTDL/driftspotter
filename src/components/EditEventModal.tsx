@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import EventForm, { type EventFormValues } from "@/components/EventForm";
 import { uploadImages } from "@/lib/uploadMedia";
 import type { MyEvent, MyEventUpdate } from "@/hooks/useMyEvents";
+import { useDialogAccessibility } from "@/hooks/useDialogAccessibility";
 
 export default function EditEventModal({
   event,
@@ -17,6 +18,7 @@ export default function EditEventModal({
   onClose: () => void;
   onSave: (eventId: string, updates: MyEventUpdate) => Promise<{ success: boolean; error?: string }>;
 }) {
+  const dialogRef = useDialogAccessibility(onClose);
   const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -109,18 +111,24 @@ export default function EditEventModal({
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
 
       <div
-        className="relative w-full max-w-2xl mx-4 my-8 md:my-16 animate-fade-in-up"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-event-title"
+        tabIndex={-1}
+        className="relative w-[calc(100%-1rem)] max-w-2xl mx-2 my-4 sm:mx-4 sm:my-8 md:my-16 animate-fade-in-up"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-heading font-bold text-2xl text-foreground tracking-tight">EDIT EVENT</h2>
+            <h2 id="edit-event-title" className="font-heading font-bold text-2xl text-foreground tracking-tight">EDIT EVENT</h2>
             {event.status === "approved" && (
               <p className="text-xs text-muted mt-1">This event is live — saved changes update the public listing immediately.</p>
             )}
           </div>
           <button
             onClick={onClose}
+            aria-label="Close event editor"
             className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-colors flex-shrink-0"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">

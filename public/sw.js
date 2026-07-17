@@ -5,8 +5,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "DriftSpotter";
   const options = {
     body: data.body || "You have a new notification",
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
     data: { url: data.url || "/" },
     vibrate: [200, 100, 200],
   };

@@ -13,6 +13,7 @@ interface DatePickerProps {
   onChange: (val: string) => void;
   placeholder?: string;
   compact?: boolean;        // smaller trigger for sidebar use
+  ariaLabel?: string;
 }
 
 function toDateStr(y: number, m: number, d: number) {
@@ -25,7 +26,7 @@ function parseDate(str: string) {
   return { year: y, month: m - 1, day: d };
 }
 
-export default function DatePicker({ value, onChange, placeholder = "Pick a date", compact }: DatePickerProps) {
+export default function DatePicker({ value, onChange, placeholder = "Pick a date", compact, ariaLabel = "Choose date" }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -100,6 +101,9 @@ export default function DatePicker({ value, onChange, placeholder = "Pick a date
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
+        aria-label={`${ariaLabel}: ${displayLabel}`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         className={`flex items-center gap-2 w-full text-left border border-border rounded-xl transition-all focus:outline-none focus:border-drift-orange hover:border-border-light ${
           compact ? "px-3 py-2 text-xs" : "px-3 py-2.5 text-sm"
         } ${value ? "text-foreground" : "text-muted-dark"} bg-surface-lighter`}
@@ -112,27 +116,22 @@ export default function DatePicker({ value, onChange, placeholder = "Pick a date
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
         <span className="flex-1 truncate">{displayLabel}</span>
-        {value && (
-          <span
-            role="button"
-            onClick={(e) => { e.stopPropagation(); onChange(""); }}
-            className="flex-shrink-0 w-4 h-4 rounded-full hover:bg-white/10 flex items-center justify-center text-muted hover:text-foreground transition-colors"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </span>
-        )}
       </button>
+      {value && (
+        <button type="button" aria-label={`Clear ${ariaLabel.toLowerCase()}`} onClick={() => onChange("")} className="absolute right-2 top-1/2 -translate-y-1/2 z-10 min-w-8 min-h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-muted hover:text-foreground transition-colors">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+        </button>
+      )}
 
       {/* Dropdown calendar */}
       {open && (
-        <div className="absolute z-50 w-[280px] rounded-2xl bg-surface border border-border shadow-2xl shadow-black/50 p-4 animate-fade-in-up" style={{ animationDuration: "150ms", ...dropdownStyle }}>
+        <div role="dialog" aria-label={ariaLabel} className="absolute z-50 w-[280px] rounded-2xl bg-surface border border-border shadow-2xl shadow-black/50 p-4 animate-fade-in-up" style={{ animationDuration: "150ms", ...dropdownStyle }}>
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <button
               type="button"
               onClick={prevMonth}
+              aria-label="Previous month"
               className="p-1.5 rounded-lg hover:bg-surface-lighter transition-colors text-muted hover:text-foreground"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
@@ -143,6 +142,7 @@ export default function DatePicker({ value, onChange, placeholder = "Pick a date
             <button
               type="button"
               onClick={nextMonth}
+              aria-label="Next month"
               className="p-1.5 rounded-lg hover:bg-surface-lighter transition-colors text-muted hover:text-foreground"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
@@ -169,6 +169,8 @@ export default function DatePicker({ value, onChange, placeholder = "Pick a date
                   key={day}
                   type="button"
                   onClick={() => selectDay(day)}
+                  aria-label={`${MONTH_NAMES[viewMonth]} ${day}, ${viewYear}`}
+                  aria-pressed={isSelected}
                   className={`relative w-full aspect-square rounded-lg text-xs font-medium flex items-center justify-center transition-all ${
                     isSelected
                       ? "bg-drift-orange text-white shadow-lg shadow-drift-orange/30"

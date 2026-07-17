@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
@@ -8,6 +8,23 @@ import { ToastProvider } from "@/components/ui/Toast";
 export const metadata: Metadata = {
   title: "DriftSpotter — Every Slide. Every Event. One Map.",
   description: "The ultimate community for drifting enthusiasts. Find events, connect with drivers, and never miss a session.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "DriftSpotter",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({

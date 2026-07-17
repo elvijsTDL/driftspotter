@@ -84,7 +84,7 @@ export default function SubmitEvent() {
       <section className="relative py-20 md:py-28">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         <div className="max-w-2xl mx-auto px-4 text-center">
-          <div className="glass rounded-2xl p-12">
+          <div className="glass rounded-2xl p-6 sm:p-12">
             <div className="w-16 h-16 rounded-full bg-badge-grassroots/20 flex items-center justify-center mx-auto mb-5">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
             </div>
@@ -126,7 +126,7 @@ export default function SubmitEvent() {
       <section className="relative py-20 md:py-28">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         <div className="max-w-2xl mx-auto px-4 text-center">
-          <div className="glass rounded-2xl p-12 border border-red-500/20">
+          <div className="glass rounded-2xl p-6 sm:p-12 border border-red-500/20">
             <h3 className="font-heading font-bold text-2xl text-foreground mb-3">Submissions Disabled</h3>
             <p className="text-muted">Your account is currently not allowed to submit events. If you believe this is a mistake, contact us and we&apos;ll take a look.</p>
           </div>

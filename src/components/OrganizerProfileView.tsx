@@ -87,7 +87,7 @@ export default function OrganizerProfileView({ userId }: { userId: string }) {
 
   if (notFound || !profile) {
     return (
-      <div className="glass rounded-2xl p-12 text-center">
+      <div className="glass rounded-2xl p-6 sm:p-12 text-center">
         <p className="text-muted">This organizer&apos;s profile is private or doesn&apos;t exist.</p>
       </div>
     );

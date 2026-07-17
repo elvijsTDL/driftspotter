@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rejectLargeRequest, requireInternalSecret } from "@/lib/apiSecurity";
 
 export async function POST(request: Request) {
+  const unauthorized = requireInternalSecret(request);
+  if (unauthorized) return unauthorized;
+  const tooLarge = rejectLargeRequest(request);
+  if (tooLarge) return tooLarge;
   const { user_id, title, body, url } = await request.json();
 
-  if (!user_id || !title) {
+  if (!user_id || typeof title !== "string" || title.length > 100 ||
+      (body != null && (typeof body !== "string" || body.length > 300)) ||
+      (url != null && (typeof url !== "string" || !url.startsWith("/")))) {
     return NextResponse.json({ error: "Missing user_id or title" }, { status: 400 });
   }
 

@@ -26,7 +26,7 @@ export default function ProfilePage() {
         ) : profile ? (
           <ProfileEditor key={profile.id} />
         ) : (
-          <div className="glass rounded-2xl p-12 text-center">
+          <div className="glass rounded-2xl p-6 sm:p-12 text-center">
             <p className="text-muted">Please sign in to edit your driver profile.</p>
           </div>
         )}

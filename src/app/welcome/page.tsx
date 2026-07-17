@@ -45,7 +45,7 @@ export default function WelcomePage() {
     return (
       <section className="relative pt-28 pb-20 md:pt-32 md:pb-28">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <div className="glass rounded-2xl p-12 text-center">
+          <div className="glass rounded-2xl p-6 sm:p-12 text-center">
             <p className="text-muted">Please sign in first.</p>
           </div>
         </div>

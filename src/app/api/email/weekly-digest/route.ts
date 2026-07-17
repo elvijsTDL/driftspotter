@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { getResend, FROM_EMAIL } from "@/lib/email/resend";
 import { WeeklyDigestEmail } from "@/lib/email/templates/weekly-digest";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireCronSecret } from "@/lib/apiSecurity";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const unauthorized = requireCronSecret(request);
+  if (unauthorized) return unauthorized;
   try {
     const supabase = createAdminClient();
 

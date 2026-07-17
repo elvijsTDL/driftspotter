@@ -67,6 +67,7 @@ export interface EventApplicant {
   // Presence-only flag (no PII), available for pending applicants too so the
   // organizer can chase a missing contact before approving.
   has_emergency_contact: boolean;
+  shortlisted: boolean;
 }
 
 /** Organizer-editable fields, snake_case as stored in the DB. */
@@ -156,7 +157,7 @@ export function useEventApplicants(eventId: string | null) {
 
     const { data: rsvps } = await supabase
       .from("event_rsvps")
-      .select("id, user_id, status, message, car_id, role, created_at")
+      .select("id, user_id, status, message, car_id, role, created_at, shortlisted")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
 
@@ -234,6 +235,7 @@ export function useEventApplicants(eventId: string | null) {
           emergency_phone: emergency?.contact_phone ?? null,
           emergency_relationship: emergency?.contact_relationship ?? null,
           has_emergency_contact: !!emergency || emergencyOnFile.has(r.user_id),
+          shortlisted: !!r.shortlisted,
         };
       })
     );
@@ -254,5 +256,15 @@ export function useEventApplicants(eventId: string | null) {
     await fetchApplicants();
   };
 
-  return { applicants, loading, refetch: fetchApplicants, updateStatus };
+  const updateShortlist = async (rsvpId: string, shortlisted: boolean) => {
+    const response = await fetch("/api/rsvp/shortlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rsvpId, shortlisted }),
+    });
+    await fetchApplicants();
+    return response.ok;
+  };
+
+  return { applicants, loading, refetch: fetchApplicants, updateStatus, updateShortlist };
 }
