@@ -29,10 +29,10 @@ export default function Footer() {
       {/* Top gradient line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-drift-orange/50 to-transparent" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-5 lg:gap-10">
           {/* Brand */}
-          <div className="lg:col-span-2">
+          <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
                 <path d="M18 2L32 10V26L18 34L4 26V10L18 2Z" stroke="#FF6B00" strokeWidth="2" fill="none" />
@@ -41,12 +41,12 @@ export default function Footer() {
               </svg>
               <span className="font-heading font-bold text-lg">DRIFT<span className="text-drift-orange">SPOTTER</span></span>
             </Link>
-            <p className="text-sm text-muted leading-relaxed mb-6 max-w-xs">
+            <p className="text-sm text-muted leading-relaxed mb-5 max-w-xs">
               The ultimate community for drifting enthusiasts. Find events, connect with drivers, and never miss a session.
             </p>
 
-            {/* Newsletter */}
-            <div className="mb-6">
+            {/* Newsletter — hidden on phones to keep the footer short */}
+            <div className="mb-5 hidden md:block">
               <p className="font-heading font-semibold text-sm text-foreground mb-3">Never miss a slide</p>
               <p className="text-sm text-muted">Newsletter coming soon. Follow us on socials to stay updated!</p>
             </div>
@@ -76,8 +76,8 @@ export default function Footer() {
           {/* Links */}
           {Object.entries(footerLinks).map(([heading, links]) => (
             <div key={heading}>
-              <h4 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wider mb-4">{heading}</h4>
-              <ul className="space-y-2.5">
+              <h4 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wider mb-3 md:mb-4">{heading}</h4>
+              <ul className="space-y-2 md:space-y-2.5">
                 {links.map((link) => (
                   <li key={link.label}>
                     {link.href.startsWith("/") ? (
@@ -97,7 +97,7 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="mt-6 md:mt-8 pt-5 md:pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3">
           <p className="text-xs text-muted-dark">&copy; 2026 DriftSpotter. All rights reserved.</p>
           <p className="text-xs text-muted-dark">Built with passion for the drift community</p>
         </div>

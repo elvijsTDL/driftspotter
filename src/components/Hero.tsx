@@ -60,7 +60,7 @@ export default function Hero() {
   const stats = useHeroStats();
 
   return (
-    <section className="relative min-h-dvh flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-dvh flex items-center justify-center overflow-hidden pt-16 md:pt-20">
       {/* Animated background layers */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-surface to-background" />
 
@@ -82,7 +82,7 @@ export default function Hero() {
       }} />
 
       {/* Content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 py-10 md:py-12 text-center">
 
         {/* Headline */}
         <h1 className="font-heading font-bold text-5xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.9] mb-6 animate-fade-in-up delay-100" style={{ opacity: 0, animationFillMode: "forwards" }}>
@@ -132,7 +132,7 @@ export default function Hero() {
       </div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-scroll-hint">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-2 animate-scroll-hint">
         <span className="text-xs text-muted-dark uppercase tracking-widest">Scroll</span>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-muted-dark">
           <path d="M10 4L10 16M10 16L16 10M10 16L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

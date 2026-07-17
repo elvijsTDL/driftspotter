@@ -125,7 +125,11 @@
   padding: 1rem 0;
   animation: partner-drift 50s linear infinite;
 }
-.partner-marquee:hover .partner-marquee-track { animation-play-state: paused; }
+/* Pause-on-hover only where hover actually exists — on touch screens a tap
+   leaves :hover stuck on, which would freeze the marquee permanently. */
+@media (hover: hover) {
+  .partner-marquee:hover .partner-marquee-track { animation-play-state: paused; }
+}
 @keyframes partner-drift {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -196,14 +200,13 @@ body { min-width: 320px; overflow-x: clip; }
 .bg-drift-orange.text-white,
 .bg-drift-orange-light.text-white { color: #0a0a0a; }
 
+/* Reduced motion: only disable smooth scrolling. A blanket animation/
+   transition freeze used to live here, but many phones report reduce-motion
+   (battery saver, OS accessibility defaults) and it made the site look broken
+   — frozen partner marquee, <Reveal> sections popping in with no fade, dead
+   hero intro. Entrance animations are short and one-shot, so they stay on. */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-  }
+  html { scroll-behavior: auto !important; }
 }
 
 /* Tire track decorative line */

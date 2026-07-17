@@ -122,7 +122,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div role="menu" aria-label="Notifications" className="absolute right-0 top-full mt-2 w-80 glass rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
+        <div role="menu" aria-label="Notifications" className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-4.5rem)] glass rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <h3 className="font-heading font-semibold text-sm text-foreground">Notifications</h3>
             {unreadCount > 0 && (
