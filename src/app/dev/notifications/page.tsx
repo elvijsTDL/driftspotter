@@ -31,7 +31,7 @@ export default function NotificationBenchPage() {
   const load = useCallback(() => {
     fetch("/dev/notifications/send")
       .then((r) => {
-        if (r.status === 404) throw new Error("The notification bench isn't available here.");
+        if (r.status === 404) throw new Error("The notification bench isn't available here. In production it only works while signed in as an admin.");
         if (!r.ok) throw new Error(`Failed to load (${r.status})`);
         return r.json();
       })

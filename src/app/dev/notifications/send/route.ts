@@ -5,14 +5,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { buildSamples, FALLBACK_EVENT, type SampleEventInfo } from "../samples";
 
 /**
- * Dev-only backend for the /dev/notifications test bench. GET returns the
- * sample catalogue hydrated with a real event; POST fires a notification at
- * the signed-in user's OWN account (in-app row and/or real web push). Not
- * reachable in production.
+ * Backend for the /dev/notifications test bench. GET returns the sample
+ * catalogue hydrated with a real event; POST fires a notification at the
+ * signed-in user's OWN account (in-app row and/or real web push). Open in
+ * dev; in production only admins can reach it (everyone else gets a 404 so
+ * the route stays invisible).
  */
 export const dynamic = "force-dynamic";
 
 const notFound = () => new NextResponse("Not found", { status: 404 });
+
+async function getCaller() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data: profile } = await createAdminClient()
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isAdmin = Boolean((profile as any)?.is_admin);
+  }
+  return { user, isAdmin };
+}
 
 async function getSampleEvent(): Promise<{ ev: SampleEventInfo; isFallback: boolean }> {
   try {
@@ -42,10 +59,9 @@ async function getSampleEvent(): Promise<{ ev: SampleEventInfo; isFallback: bool
 }
 
 export async function GET() {
-  if (process.env.NODE_ENV === "production") return notFound();
+  const { user, isAdmin } = await getCaller();
+  if (process.env.NODE_ENV === "production" && !isAdmin) return notFound();
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
   const { ev, isFallback } = await getSampleEvent();
 
   let subscriptionCount = 0;
@@ -68,10 +84,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV === "production") return notFound();
+  const { user, isAdmin } = await getCaller();
+  if (process.env.NODE_ENV === "production" && !isAdmin) return notFound();
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json(
       { error: "Sign in first — test notifications are delivered to your own account." },
