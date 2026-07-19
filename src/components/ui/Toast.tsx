@@ -44,14 +44,16 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
     return () => clearTimeout(timer);
   }, [toast.id, onRemove]);
 
+  // Opaque tinted-dark backgrounds (surface #111 + ~20% accent) — translucent
+  // tints made toasts see-through over page content
   const colors = {
-    success: "bg-badge-grassroots/20 border-badge-grassroots/30 text-badge-grassroots",
-    error: "bg-red-500/20 border-red-500/30 text-red-400",
-    info: "bg-drift-cyan/20 border-drift-cyan/30 text-drift-cyan",
+    success: "bg-[#143520] border-badge-grassroots/30 text-badge-grassroots",
+    error: "bg-[#3D1B1B] border-red-500/30 text-red-400",
+    info: "bg-[#0E3841] border-drift-cyan/30 text-drift-cyan",
   };
 
   return (
-    <div role={toast.type === "error" ? "alert" : "status"} className={`px-4 py-3 rounded-xl border backdrop-blur-sm text-sm font-medium animate-fade-in-up ${colors[toast.type]}`}>
+    <div role={toast.type === "error" ? "alert" : "status"} className={`px-4 py-3 rounded-xl border shadow-lg text-sm font-medium animate-fade-in-up ${colors[toast.type]}`}>
       {toast.message}
     </div>
   );

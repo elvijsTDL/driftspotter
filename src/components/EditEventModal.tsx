@@ -108,7 +108,7 @@ export default function EditEventModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="fixed inset-0 bg-black/85 backdrop-blur-sm" />
 
       <div
         ref={dialogRef}

@@ -117,7 +117,7 @@ export default function Navbar({
                   </button>
 
                   {dropdownOpen && (
-                    <div role="menu" aria-label="Account" className="absolute right-0 top-full mt-2 w-56 glass rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
+                    <div role="menu" aria-label="Account" className="absolute right-0 top-full mt-2 w-56 glass-solid rounded-xl border border-border shadow-xl overflow-hidden animate-fade-in-up">
                       <div className="px-4 py-3 border-b border-border">
                         <p className="text-sm font-semibold text-foreground">{displayName}</p>
                         <p className="text-xs text-muted truncate">{user.email}</p>
@@ -212,7 +212,7 @@ export default function Navbar({
       {/* Mobile Menu */}
       <div
         id="mobile-navigation"
-        className={`md:hidden glass transition-all duration-300 ${
+        className={`md:hidden glass-solid transition-all duration-300 ${
           mobileOpen ? "max-h-[calc(100dvh-4rem)] opacity-100 overflow-y-auto" : "max-h-0 opacity-0 overflow-hidden"
         }`}
       >

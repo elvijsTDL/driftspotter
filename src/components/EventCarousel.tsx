@@ -39,6 +39,9 @@ export default function EventCarousel({ onSelectEvent }: { onSelectEvent: (e: Dr
         {/* Section header */}
         <div className="flex items-end justify-between mb-10">
           <div>
+            <p className="text-xs font-heading font-semibold text-drift-orange uppercase tracking-[0.3em] mb-3">
+              Happening Soon
+            </p>
             <h2 className="font-heading font-bold text-3xl md:text-4xl text-foreground tracking-tight">
               UPCOMING HOT EVENTS
             </h2>

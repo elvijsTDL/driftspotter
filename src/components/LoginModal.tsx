@@ -61,7 +61,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
-        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="email-confirm-title" tabIndex={-1} className="relative w-[calc(100%-1rem)] max-w-md mx-2 sm:mx-4 rounded-2xl glass overflow-hidden animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="email-confirm-title" tabIndex={-1} className="relative w-[calc(100%-1rem)] max-w-md mx-2 sm:mx-4 rounded-2xl glass-solid overflow-hidden animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
           <div className="p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-badge-grassroots/20 flex items-center justify-center mx-auto mb-5">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -89,7 +89,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-labelledby="login-dialog-title"
         tabIndex={-1}
-        className="relative w-[calc(100%-1rem)] max-w-md mx-2 sm:mx-4 max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-2xl glass animate-fade-in-up"
+        className="relative w-[calc(100%-1rem)] max-w-md mx-2 sm:mx-4 max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-2xl glass-solid animate-fade-in-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}

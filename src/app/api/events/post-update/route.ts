@@ -86,9 +86,14 @@ export async function POST(request: Request) {
 
   const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
-  const pushEnabled = !!(vapidPublic && vapidPrivate);
+  let pushEnabled = !!(vapidPublic && vapidPrivate);
   if (pushEnabled) {
-    webpush.setVapidDetails("mailto:hello@driftspotter.com", vapidPublic!, vapidPrivate!);
+    try {
+      webpush.setVapidDetails("mailto:hello@driftspotter.com", vapidPublic!, vapidPrivate!);
+    } catch (err) {
+      console.error("Invalid VAPID keys, skipping push:", err);
+      pushEnabled = false;
+    }
   }
 
   const eventUrl = `${SITE_URL}/events/${eventId}`;

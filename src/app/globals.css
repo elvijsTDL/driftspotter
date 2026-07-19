@@ -51,6 +51,16 @@
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
+/* Near-opaque variant for floating overlays (dropdowns, menus, modals, toasts).
+   Translucent .glass over live page content reads as see-through — especially on
+   Android, where backdrop-filter is often disabled and only the alpha remains. */
+.glass-solid {
+  background: rgba(17, 17, 17, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 /* Glow effects */
 .glow-orange {
   box-shadow: 0 0 20px rgba(255, 107, 0, 0.3), 0 0 60px rgba(255, 107, 0, 0.1);

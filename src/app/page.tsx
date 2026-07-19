@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Hero from "@/components/Hero";
 import EventCarousel from "@/components/EventCarousel";
-import VideoHighlights from "@/components/VideoHighlights";
+import LandingShowcase from "@/components/LandingShowcase";
 import EventDetailModal from "@/components/EventDetailModal";
 import { type DriftEvent } from "@/data/events";
 
@@ -22,7 +22,7 @@ export default function Home() {
         <div className="absolute bottom-0 -left-40 w-[450px] h-[450px] bg-drift-cyan/5 rounded-full blur-[140px] pointer-events-none" />
 
         <EventCarousel onSelectEvent={setSelectedEvent} />
-        <VideoHighlights />
+        <LandingShowcase />
       </div>
 
       {selectedEvent && (

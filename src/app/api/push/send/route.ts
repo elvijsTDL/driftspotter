@@ -23,7 +23,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "VAPID keys not configured" }, { status: 500 });
   }
 
-  webpush.setVapidDetails("mailto:hello@driftspotter.com", vapidPublic, vapidPrivate);
+  try {
+    webpush.setVapidDetails("mailto:hello@driftspotter.com", vapidPublic, vapidPrivate);
+  } catch (err) {
+    return NextResponse.json(
+      { error: `VAPID keys invalid: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    );
+  }
 
   const supabase = createAdminClient();
 

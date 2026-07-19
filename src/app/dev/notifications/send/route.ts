@@ -129,10 +129,18 @@ export async function POST(request: Request) {
   if (channels.includes("push")) {
     const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+    let vapidReady = false;
     if (!vapidPublic || !vapidPrivate) {
       result.pushError = "VAPID keys missing (NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY in .env.local)";
     } else {
-      webpush.setVapidDetails("mailto:hello@driftspotter.com", vapidPublic, vapidPrivate);
+      try {
+        webpush.setVapidDetails("mailto:hello@driftspotter.com", vapidPublic, vapidPrivate);
+        vapidReady = true;
+      } catch (err) {
+        result.pushError = `VAPID keys invalid: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    }
+    if (vapidReady) {
       const { data: subscriptions } = await admin
         .from("push_subscriptions")
         .select("*")

@@ -129,7 +129,7 @@ export default function EventDetailModal({ event, onClose }: { event: DriftEvent
         aria-modal="true"
         aria-labelledby="event-detail-title"
         tabIndex={-1}
-        className="relative w-[calc(100%-1rem)] max-w-2xl mx-2 my-2 sm:mx-4 sm:my-8 md:my-16 rounded-2xl glass overflow-hidden animate-fade-in-up"
+        className="relative w-[calc(100%-1rem)] max-w-2xl mx-2 my-2 sm:mx-4 sm:my-8 md:my-16 rounded-2xl glass-solid overflow-hidden animate-fade-in-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
